@@ -1,0 +1,133 @@
+import itertools
+import os
+import pytest
+import sys
+
+from densitty import ansi, ascii_art, axis, detect, lineart, plot, truecolor
+import gen_norm_data
+import golden
+
+mock_terminal_size = os.terminal_size((100, 48))
+
+
+def mock_get_terminal_size():
+    return mock_terminal_size
+
+
+def histlike():
+    data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
+
+    y_axis = axis.Axis((-1, 1), border_line=True, values_are_edges=True)
+    x_axis = axis.Axis((-1, 1), border_line=True, values_are_edges=True)
+
+    my_plot = plot.Plot(
+        data=data,
+        color_map=truecolor.FADE_IN,
+        y_axis=y_axis,
+        x_axis=x_axis,
+        min_data=-0.2,
+    )
+    return my_plot
+
+
+def heatlike():
+    data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
+
+    y_axis = axis.Axis(
+        (-1, 1),
+        border_line=True,
+        values_are_edges=False,
+        fractional_tick_pos=False,
+    )
+    x_axis = axis.Axis(
+        (-1, 1),
+        border_line=True,
+        values_are_edges=False,
+        fractional_tick_pos=False,
+    )
+
+    my_plot = plot.Plot(
+        data=data,
+        color_map=truecolor.FADE_IN,
+        y_axis=y_axis,
+        x_axis=x_axis,
+        min_data=-0.2,
+    )
+    return my_plot
+
+
+@pytest.fixture
+def hist():
+    return histlike()
+
+
+@pytest.fixture
+def heat():
+    return heatlike()
+
+
+def test_glyphs(hist):
+    plot.default_terminal_size = os.terminal_size((100, 50))
+    for name, mapping in [
+        ("ascii", lineart.ascii_font),
+        ("basic", lineart.basic_font),
+        ("extended", lineart.extended_font),
+    ]:
+        hist.font_mapping = mapping
+        golden.check(hist.as_strings(), "simple_glyph_" + name)
+
+
+def test_merge():
+    chars = "╷╴╶╵│┐┌─┘└┴┤┬├┼▁▔"
+    pairs = itertools.product(chars, repeat=2)
+    check = ""
+    line_a = ""
+    line_b = ""
+    for a, b in pairs:
+        check += lineart.merge_chars(a, b, use_combining_unicode=True)
+        line_a += a
+        line_b += b
+
+    golden.check(check, "merge_chars")
+    golden.check(lineart.merge_lines(line_a, line_b), "merge_lines")
+
+
+# Output to screen for visual check:
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--all"]:
+        hist = histlike()
+        heat = heatlike()
+        plot_types = [("hist", hist), ("heat", heat)]
+        mapping_types = [
+            ("ascii", lineart.ascii_font),
+            ("basic", lineart.basic_font),
+            ("extended", lineart.extended_font),
+        ]
+        border_types = [False, True]
+        frac_types = [False, True]
+
+        for plotname, p in plot_types:
+            for mapname, mapping in mapping_types:
+                p.font_mapping = mapping
+                for border in border_types:
+                    p.x_axis.border_line = border
+                    p.y_axis.border_line = border
+                    for do_frac in frac_types:
+                        p.x_axis.fractional_tick_pos = do_frac
+                        p.y_axis.fractional_tick_pos = do_frac
+                        print(f"{plotname} {mapname}, frac {do_frac}, border {border}:")
+                        p.show()
+    elif sys.argv[1:] == ["--combining"]:
+        vert = "│ │ │ │ │ │"
+        bots = "▁▁▁▁▁▁▁▁▁▁▁"
+        mids = "───────────"
+        tops = "▔▔▔▔▔▔▔▔▔▔▔"
+        print(vert)
+        print(lineart.merge_lines(vert, bots, True))
+        print(vert)
+        print(lineart.merge_lines(vert, mids, True))
+        print(vert)
+        print(lineart.merge_lines(vert, tops, True))
+        print(vert)
+    else:
+        print("Specify '--all' or '--combining'")

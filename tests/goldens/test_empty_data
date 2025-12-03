@@ -1,0 +1,1 @@
+([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]], ValueRange(min=Decimal('0.0'), max=Decimal('1.0')), ValueRange(min=Decimal('0.0'), max=Decimal('1.0')))
