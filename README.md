@@ -3,6 +3,13 @@
 Generate 2-D histograms in the terminal, similar to [matplotlib's hist2d](https://matplotlib.org/stable/gallery/statistics/hist.html), with no external dependencies.
 
 ## Gallery
+<style>
+    .img20 {
+        width: 20em;
+	height: auto;
+    }
+</style>
+
 Given a list of points:
 
 ```
@@ -19,7 +26,7 @@ from densitty.axis import Axis
 binned, x_range, y_range = bin_data(points, (1,1))
 Plot(binned).show()
 ```
-![Plot Output](./examples/hist2d-basic.png)
+<img class="img20" src="./examples/hist2d-basic.png" alt="Plot Output">
 
 
 Add axes:
@@ -43,7 +50,7 @@ p.upscale((60,60)).show()
 ```
 ![Plot Output](./examples/hist2d-scaled.png)
 
-```
+
 Bin with a finer bin size, use terminal-capability detection to pick a colormap, add border lines to axes:
 ```
 from densitty.detect import plot
