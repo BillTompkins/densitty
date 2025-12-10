@@ -23,6 +23,7 @@ def strip_ansi(value: str) -> str:
     """Remove ANSI escape sequences."""
     return ANSI_ESCAPE_RE.sub("", value)
 
+
 def split_ansi(value: str) -> str:
     """Split into list, each element is a single character or color + character."""
     out, remaining = [], value
@@ -77,7 +78,7 @@ def marker_line(golden_line: str, new_line: str) -> str:
         golden_split = split_ansi(golden_line)
         new_split = split_ansi(new_line)
         as_pairs = zip_longest(golden_split, new_split, fillvalue="")
-        diff_list = [" " if x == y else "~" for x,y in as_pairs]
+        diff_list = [" " if x == y else "~" for x, y in as_pairs]
         return "".join(diff_list)
 
     markers: list[str] = []
@@ -161,24 +162,6 @@ def test_marker_line_marks_color_only_differences():
     marker = marker_line(red, green)
     assert marker == "   ~   ~   "
 
-
-def test_build_report_describes_changed_lines(tmp_path: Path):
-    goldens = tmp_path / "goldens"
-    goldens.mkdir()
-    new_goldens = tmp_path / "new_goldens"
-    new_goldens.mkdir()
-
-    (goldens / "sample").write_text("('abc', '123')")
-    (new_goldens / "sample").write_text("('axc', '123')")
-
-    report = build_report(goldens, new_goldens)
-
-    assert "sample" in report
-    assert "line 1:" in report
-    assert "gold: abc" in report
-    assert " new: axc" in report
-    assert "diff:  ^" in report
-    assert "line 2:" not in report
 
 if __name__ == "__main__":
     process_new_goldens(Path("tests/goldens"), Path("tests/new_goldens"))

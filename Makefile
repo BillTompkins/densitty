@@ -3,11 +3,11 @@
 #PY_FILES := $(filter-out %tests.py %gen%.py, $(wildcard *.py))
 
 test:
-	PYTHONPATH=. uv run --with numpy,pytest,rich python -m pytest tests/*.py
-	PYTHONPATH=. uv run --with numpy,pytest,pytest-cov python -m pytest --cov=densitty tests/*.py
+	PYTHONPATH=. uv run --with numpy,pytest,readchar,rich python -m pytest tests/*.py
+	PYTHONPATH=. uv run --with numpy,pytest,readchar,pytest-cov python -m pytest --cov=densitty tests/*.py
 
 testcov:
-	PYTHONPATH=. uv run --with numpy,pytest,pytest-cov python -m pytest --cov=densitty --cov-report=html tests/*.py
+	PYTHONPATH=. uv run --with numpy,pytest,pytest-cov,readchar python -m pytest --cov=densitty --cov-report=html tests/*.py
 
 golden-accept:
 	PYTHONPATH=. uv run --with readchar python tests/golden_diff.py
