@@ -79,13 +79,13 @@ Providing an Axis object for your X and Y axes lets you specify the range of eac
 
 ### Colors
 #### Truecolor / RGB/ 24-bit color
-Several 24-bit color maps are provided in `truecolor.py`, for use with terminals that support it. If you want to specify your own 24-bit color map, the included `colormap24b()` function is a straightforward way to interpolate between provided colors to produce a color map. Interpolation is done in Lab* color space to preserve brightness and avoid the "muddy" colors seen when interpolating directly in RGB.
+Several 24-bit color maps are provided in `truecolor.py`, for use with terminals that support it. If you want to specify your own 24-bit color map, the included `colormap24b()` function is a straightforward way to interpolate between provided colors to produce a color map. Interpolation is done in L*a*b* color space to preserve brightness and avoid the "muddy" colors seen when interpolating directly in RGB.
 
 #### 256-color / 16-color
 Non-truecolor "ANSI" color maps are provided in `ansi.py`, for both 256-color-capable terminals as well as minimally color supporting 16-color.
 
 #### ASCII-art
-For terminals that don't support colors, or for that old-school look, `ascii-art.py` has some "color maps" using just character density.
+For terminals that don't support colors, or for that old-school look, `ascii_art.py` has some "color maps" using just character density.
 
 ### Binning
 `binning.py` provides utility functions to bin a list of (X,Y) values into a dataset suitable for plotting with the `Plot` class.

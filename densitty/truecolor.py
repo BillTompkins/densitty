@@ -17,7 +17,7 @@ from .util import clamp, clamp_rgb, interp, Vec
 use_oda_colorcodes = False
 
 # Probably overkill: linear interpolation of RGB values gets muddy in the middle.
-#    Interpolating in CIE "L*ab" space typically gives much nicer results.
+#    Interpolating in CIE "L*a*b*" space typically gives much nicer results.
 
 
 def _rgb_to_linear_rgb(channel):
@@ -101,7 +101,7 @@ def colormap_24b(color_points: Sequence[Vec], num_output_colors=256, interp_in_r
     num_output_colors: int
                   Number of distinct interpolated output colors to use
     interp_in_rgb: bool
-                  Interpolate in RGB space rather than L*ab space
+                  Interpolate in RGB space rather than Lab space
     """
     # create the color map by interpolating between the given color points
     if interp_in_rgb:

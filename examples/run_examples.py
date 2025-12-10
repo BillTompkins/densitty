@@ -1,8 +1,3 @@
-import random
-
-from densitty.binning import bin_data
-from densitty.plot import Plot
-
 separator = "\n\n" + "=" * 80
 
 gendata = """
