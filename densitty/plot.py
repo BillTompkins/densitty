@@ -55,17 +55,20 @@ class Plot:
         num_bins : Optional[tuple[int, int]]
             Number of (X, Y) bins to partition data into. If None, defaults to (80, 40).
             Mutually exclusive with bin_sizes.
-        bin_sizes : Optional[tuple[FloatLike, FloatLike]]
+        bin_sizes : Optional[tuple[FloatLike, FloatLike]] (keyword-only)
             Sizes of (X, Y) bins. If provided, overrides num_bins.
-        ranges : Optional[tuple[ValueRange, ValueRange]]
+        ranges : Optional[tuple[ValueRange, ValueRange]] (keyword-only)
             ((x_min, x_max), (y_min, y_max)) for the bins. If None, computed from data.
-        auto_adjust_bins : bool
+        auto_adjust_bins : bool (keyword-only)
             If True, adjust bin edges to fall on "round" values. Default: True.
-        create_axes : bool
-            If True, automatically create X and Y axes. Default: True.
+        create_axes : bool (keyword-only)
+            If True, automatically create X and Y axes unless axes are explicitly
+            provided in kwargs. Default: True.
         **kwargs
             Additional keyword arguments passed to Plot constructor (e.g., color_map,
-            render_halfheight, min_data, max_data, flip_y).
+            render_halfheight, min_data, max_data, flip_y, x_axis, y_axis).
+            Note: If create_axes=True and x_axis/y_axis are not in kwargs, they will
+            be automatically generated.
 
         Returns
         -------
@@ -84,6 +87,8 @@ class Plot:
         >>> plot.show()
         """
         # Default to 80x40 bins if neither num_bins nor bin_sizes is specified
+        # This provides reasonable resolution for most terminal sizes and can be
+        # further scaled with the upscale() method if needed
         if num_bins is None and bin_sizes is None:
             num_bins = (80, 40)
 
@@ -107,7 +112,8 @@ class Plot:
                 auto_adjust_bins=auto_adjust_bins,
             )
 
-        # Create axes if requested
+        # Create axes if requested and not already provided
+        # Note: If create_axes=True and axes are in kwargs, the user-provided axes take precedence
         if create_axes:
             if "x_axis" not in kwargs:
                 kwargs["x_axis"] = axis.Axis(x_range, values_are_edges=True)
