@@ -9,6 +9,9 @@ test:
 testcov:
 	PYTHONPATH=. uv run --with numpy,pytest,pytest-cov python -m pytest --cov=densitty --cov-report=html tests/*.py
 
+golden-accept:
+	PYTHONPATH=. uv run --with readchar python tests/golden_diff.py
+
 lint:
 	PYTHONPATH=. uv run --with pylint,rich python -m pylint densitty
 
