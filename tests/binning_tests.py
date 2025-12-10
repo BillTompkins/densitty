@@ -132,21 +132,18 @@ if __name__ == "__main__":
 
     rng = np.random.default_rng(args.seed)
     points = rng.random((args.num, 2))
-    binned, x_range, y_range = binning.bin_pick_num_bins(points, (args.bins, args.bins))
-    # binned, x_range, y_range = binning.bin_pick_num_bins(points, (80,80), ranges=((0,1), (0,1)), auto_adjust_bins=False)
+    binned, x_axis, y_axis = binning.bin_pick_num_bins(
+        points, (args.bins, args.bins), border_line=True
+    )
     if args.debug:
-        print(f"X range: {x_range.min}, {x_range.max}")
-        print(f"Y range: {y_range.min}, {y_range.max}")
+        print(f"X range: {x_axis.value_range.min}, {x_axis.value_range.max}")
+        print(f"Y range: {y_axis.value_range.min}, {y_axis.value_range.max}")
         print(f"Binned data size: {len(binned[0])}x{len(binned)}")
-    x_axis = axis.Axis(x_range, values_are_edges=True, border_line=True)
-    y_axis = axis.Axis(y_range, values_are_edges=True, border_line=True)
     detect.plot(binned, x_axis=x_axis, y_axis=y_axis).show()
 
-    binned, x_range, y_range = binning.bin_data(
-        points, (0.1, 0.1), ((0, 1), (0, 1)), align_bins=True, drop_outside=True
+    binned, x_axis, y_axis = binning.bin_data(
+        points, (0.1, 0.1), ((0, 1), (0, 1)), align_bins=True, drop_outside=True, border_line=True
     )
-    x_axis = axis.Axis(x_range, values_are_edges=True, border_line=True)
-    y_axis = axis.Axis(y_range, values_are_edges=True, border_line=True)
     histplot = detect.plot(binned, x_axis=x_axis, y_axis=y_axis)
     histplot.show()
     histplot.upscale().show()

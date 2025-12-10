@@ -16,7 +16,7 @@ points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10
 from densitty.binning import bin_data
 from densitty.plot import Plot
 
-binned, x_range, y_range = bin_data(points, (1,1))
+binned, _, _ = bin_data(points, (1,1))
 Plot(binned).show()
 ```
 Output:
@@ -25,11 +25,8 @@ Output:
 
 #### Add some axes:
 ```python
-from densitty.axis import Axis
 
-# The bins in a histogram are typically labeled on the edges, not the bin centers
-x_axis = Axis(x_range, values_are_edges=True)
-y_axis = Axis(y_range, values_are_edges=True)
+binned, x_axis, y_axis = bin_data(points, (1,1))
 
 p = Plot(binned, x_axis=x_axis, y_axis=y_axis)
 p.show()
@@ -38,9 +35,7 @@ p.show()
 
 #### Specify explicit boundaries for the binning, and scale up the output size to 60x60
 ```python
-binned, x_range, y_range = bin_data(points, (1,1), ranges=((-10,10), (-10,10)))
-x_axis = Axis(x_range, values_are_edges=True)
-y_axis = Axis(y_range, values_are_edges=True)
+binned, x_axis, y_axis = bin_data(points, (1,1), ranges=((-10,10), (-10,10)))
 p = Plot(binned, x_axis=x_axis, y_axis=y_axis)
 p.upscale((60,60)).show()
 ```
@@ -51,8 +46,8 @@ p.upscale((60,60)).show()
 ```python
 from densitty.detect import plot
 
-binned, x_range, y_range = bin_data(points, (.25, .25), ranges=((-10,10), (-10,10)))
-plot(binned, x_axis=Axis(x_range, border_line=True), y_axis=Axis(y_range, border_line=True)).show()
+binned, x_axis, y_axis = bin_data(points, (.25, .25), ranges=((-10,10), (-10,10)), border_line=True)
+plot(binned, x_axis, y_axis).show()
 ```
 ![Plot Output](./examples/hist2d-finer-color-borderline.png)
 

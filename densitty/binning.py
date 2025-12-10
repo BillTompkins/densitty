@@ -1,9 +1,11 @@
 """Bin point data for a 2-D histogram"""
 
+import math
 from bisect import bisect_right
 from decimal import Decimal
-import math
 from typing import Optional, Sequence
+
+from .axis import Axis
 from .util import FloatLike, ValueRange
 from .util import clamp, pick_step_size
 
@@ -130,17 +132,14 @@ def edge_range(start: FloatLike, end: FloatLike, step: FloatLike, align: bool):
         v += step
 
 
-# TODO: Should binning return Axes, so that the ticks make sense given the bins?
-#       In that case, probably need to take Axes as input as well, instead of 'ranges'
-
-
 def bin_data(
     points: Sequence[tuple[FloatLike, FloatLike]],
     bin_sizes: tuple[FloatLike, FloatLike],
     ranges: Optional[tuple[ValueRange, ValueRange]] = None,
     align_bins=True,
     drop_outside=True,
-) -> tuple[Sequence[Sequence[int]], ValueRange, ValueRange]:
+    **axis_args,
+) -> tuple[Sequence[Sequence[int]], Axis, Axis]:
     """Bin points into a 2-D histogram
 
     Parameters
@@ -155,7 +154,9 @@ def bin_data(
     drop_outside: bool (default: True)
                 True: Drop any data points outside the ranges
                 False: Put any outside points in closest bin (i.e. edge bins include outliers)
-    returns: Sequence[Sequence[int]], ValueRange(min_x, max_x), ValueRange(min_y, max_y)
+    axis_args: Extra arguments to pass through to Axis constructor
+
+    returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
     if ranges is None:
@@ -167,8 +168,7 @@ def bin_data(
     x_edges = tuple(edge_range(x_range.min, x_range.max, bin_sizes[0], align_bins))
     y_edges = tuple(edge_range(y_range.min, y_range.max, bin_sizes[1], align_bins))
 
-    return (
-        bin_edges(points, x_edges, y_edges, drop_outside=drop_outside),
-        ValueRange(x_edges[0], x_edges[-1]),
-        ValueRange(y_edges[0], y_edges[-1]),
-    )
+    x_axis = Axis(x_range, values_are_edges=True, **axis_args)
+    y_axis = Axis(y_range, values_are_edges=True, **axis_args)
+
+    return (bin_edges(points, x_edges, y_edges, drop_outside=drop_outside), x_axis, y_axis)
