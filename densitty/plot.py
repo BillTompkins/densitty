@@ -6,8 +6,8 @@ import os
 import sys
 from typing import Callable, Optional, Sequence
 
-from . import ansi, axis, lineart
-from .util import FloatLike
+from . import ansi, axis, binning, lineart
+from .util import FloatLike, ValueRange
 
 # pylint: disable=invalid-name
 # User can set this to provide a default if os.terminal_size() fails:
@@ -30,6 +30,92 @@ class Plot:
     x_axis: Optional[axis.Axis] = None
     y_axis: Optional[axis.Axis] = None
     flip_y: bool = True  # put the first row of data at the bottom of the output
+
+    @classmethod
+    def from_points(
+        cls,
+        points: Sequence[tuple[FloatLike, FloatLike]],
+        num_bins: Optional[tuple[int, int]] = None,
+        *,
+        bin_sizes: Optional[tuple[FloatLike, FloatLike]] = None,
+        ranges: Optional[tuple[ValueRange, ValueRange]] = None,
+        auto_adjust_bins: bool = True,
+        create_axes: bool = True,
+        **kwargs,
+    ):
+        # pylint: disable=too-many-arguments
+        """Create a Plot from raw point data by automatically binning it.
+
+        This is a convenience method that combines binning and plot creation in one step.
+
+        Parameters
+        ----------
+        points : Sequence[tuple[FloatLike, FloatLike]]
+            Sequence of (X, Y) coordinate tuples to be plotted
+        num_bins : Optional[tuple[int, int]]
+            Number of (X, Y) bins to partition data into. If None, defaults to (80, 40).
+            Mutually exclusive with bin_sizes.
+        bin_sizes : Optional[tuple[FloatLike, FloatLike]]
+            Sizes of (X, Y) bins. If provided, overrides num_bins.
+        ranges : Optional[tuple[ValueRange, ValueRange]]
+            ((x_min, x_max), (y_min, y_max)) for the bins. If None, computed from data.
+        auto_adjust_bins : bool
+            If True, adjust bin edges to fall on "round" values. Default: True.
+        create_axes : bool
+            If True, automatically create X and Y axes. Default: True.
+        **kwargs
+            Additional keyword arguments passed to Plot constructor (e.g., color_map,
+            render_halfheight, min_data, max_data, flip_y).
+
+        Returns
+        -------
+        Plot
+            A new Plot instance with binned data and optional axes.
+
+        Examples
+        --------
+        >>> import random
+        >>> points = [(random.random(), random.random()) for _ in range(1000)]
+        >>> plot = Plot.from_points(points, num_bins=(50, 25))
+        >>> plot.show()
+
+        >>> # Or with specific bin sizes
+        >>> plot = Plot.from_points(points, bin_sizes=(0.1, 0.1))
+        >>> plot.show()
+        """
+        # Default to 80x40 bins if neither num_bins nor bin_sizes is specified
+        if num_bins is None and bin_sizes is None:
+            num_bins = (80, 40)
+
+        # Validate that only one of num_bins or bin_sizes is specified
+        if num_bins is not None and bin_sizes is not None:
+            raise ValueError("Cannot specify both num_bins and bin_sizes")
+
+        # Bin the data using the appropriate method
+        if bin_sizes is not None:
+            binned_data, x_range, y_range = binning.bin_data(
+                points,
+                bin_sizes,
+                ranges=ranges,
+                align_bins=auto_adjust_bins,
+            )
+        else:
+            binned_data, x_range, y_range = binning.bin_pick_num_bins(
+                points,
+                num_bins,
+                ranges=ranges,
+                auto_adjust_bins=auto_adjust_bins,
+            )
+
+        # Create axes if requested
+        if create_axes:
+            if "x_axis" not in kwargs:
+                kwargs["x_axis"] = axis.Axis(x_range, values_are_edges=True)
+            if "y_axis" not in kwargs:
+                kwargs["y_axis"] = axis.Axis(y_range, values_are_edges=True)
+
+        # Create and return the Plot
+        return cls(data=binned_data, **kwargs)
 
     def as_ascii(self):
         """Output using direct characters (ASCII-art)."""
