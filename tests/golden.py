@@ -28,4 +28,4 @@ def check(content, check_name=None):
         except FileNotFoundError:
             pass
     assert golden_content is not None, "No golden output for test"
-    assert golden_content == content_str
+    assert golden_content == content_str, "Mismatch with golden output"

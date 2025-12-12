@@ -9,7 +9,7 @@ from types import MappingProxyType
 from typing import Any, Callable, Optional
 import time
 
-from . import ansi, ascii_art, lineart, truecolor
+from . import ansi, ascii_art, binning, lineart, truecolor
 from . import plot as plotmodule
 
 if sys.platform == "win32":
@@ -421,7 +421,31 @@ def pick_colormap(maps: dict[ColorSupport, Callable]) -> Callable:
     return maps[support]
 
 
-def plot(data, colors=FADE_IN, **kwargs):
+def plot(data, colors=FADE_IN, **plotargs):
     """Wrapper for plot.Plot that picks colormap from dict"""
     colormap = pick_colormap(colors)
-    return plotmodule.Plot(data, colormap, **kwargs)
+    return plotmodule.Plot(data, colormap, **plotargs)
+
+
+# XXX matplotlib's "hist2d" takes 'bins' as int (num in both directions),
+#     or [int, int] (num in X and Y),
+#     or [int, int, ...] as edges in both,
+#     or [[int, int, ...], [...]] as edges in the two directions
+# def histplot(
+#    points,
+#    bin_sizes,
+#    ranges=None,
+#    colors=FADE_IN,
+#    border_line=True,
+#    fractional_tick_pos=False,
+#    **plotargs,
+# ):
+#    """Wrapper for binning.bin_data / plot.Plot to simplify 2-D histogram plotting"""
+#    binned_data, x_axis, y_axis = binning.bin_data(
+#        points,
+#        bin_sizes,
+#        ranges=ranges,
+#        border_line=border_line,
+#        fractional_tick_pos=fractional_tick_pos,
+#    )
+#    return plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)

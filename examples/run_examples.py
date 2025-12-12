@@ -10,6 +10,18 @@ points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10
 print(gendata)
 exec(gendata)
 
+use_detect = """
+# Use the helper function in 'detect.py' to pick color map based on terminal capabilities, bin the
+# points in 0.25-wide bins, and make a plot with axes:
+from densitty.detect import histplot
+
+histplot(points, (.25, .25)).show()
+#histplot(points, (.25, .25), ranges=((-10,10), (-10,10))).show()
+"""
+print(separator)
+print(use_detect)
+exec(use_detect)
+
 basic = """
 # Bin the data and plot as 2-D histogram
 
