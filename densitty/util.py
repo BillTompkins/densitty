@@ -125,3 +125,29 @@ def pick_step_size(value_range, num_steps_hint, min_steps_per_label=1) -> tuple[
         step = 10 * decade
 
     return step, step * steps_per_label
+
+
+def nice_range(num_bins: int, value_range: ValueRange) -> ValueRange:
+    """Compute a 'nice' range that includes the input range with round min/max and bin edge values.
+
+    The output range will include the input range and be expanded so that:
+    - The min and max values are 'nice' and 'round'
+    - The bin edge values (from dividing into num_bins) are 'nice' and 'round'
+    - The range is not reduced on either end
+
+    Parameters
+    ----------
+    num_bins: int
+              Number of bins to divide the range into
+    value_range: ValueRange
+              The original (min, max) range to expand
+    returns: ValueRange
+              A new range with nice round boundaries
+    """
+    step_size, _ = pick_step_size(value_range, num_bins)
+    # Floor the min to a nice boundary
+    nice_min = math.floor(Decimal(value_range.min) / step_size) * step_size
+    # Calculate the number of bins needed to cover the range
+    num_steps = math.ceil((Decimal(value_range.max) - nice_min) / step_size)
+    nice_max = nice_min + step_size * num_steps
+    return ValueRange(nice_min, nice_max)
