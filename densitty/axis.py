@@ -4,7 +4,7 @@ import dataclasses
 from decimal import Decimal
 import itertools
 import math
-from typing import Optional, overload
+from typing import Optional
 
 from . import lineart
 from .util import FloatLike, ValueRange, pick_step_size
@@ -112,32 +112,6 @@ class Axis:
     border_line: bool = False  # embed ticks in a horizontal X-axis or vertical Y-axis line
     values_are_edges: bool = False  # N+1 values, indicating boundaries between pixels, not centers
     fractional_tick_pos: bool = False  # Use "▔", "▁", or "╱╲" for non-centered ticks
-
-    @overload
-    def __init__(
-        self,
-        value_range: ValueRange,
-        labels: Optional[dict[float, str]] = None,
-        label_fmt: str = "{}",
-        border_line: bool = False,
-        values_are_edges: bool = False,
-        fractional_tick_pos: bool = False,
-        # pylint: disable=too-many-arguments,too-many-positional-arguments
-    ):
-        pass
-
-    @overload
-    def __init__(
-        self,
-        value_range: tuple[FloatLike, FloatLike],
-        labels: Optional[dict[float, str]] = None,
-        label_fmt: str = "{}",
-        border_line: bool = False,
-        values_are_edges: bool = False,
-        fractional_tick_pos: bool = False,
-        # pylint: disable=too-many-arguments,too-many-positional-arguments
-    ):
-        pass
 
     def __init__(
         self,
