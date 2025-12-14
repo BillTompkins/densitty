@@ -6,11 +6,12 @@ import os
 import platform
 import sys
 from types import MappingProxyType
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 import time
 
 from . import ansi, ascii_art, binning, lineart, truecolor
 from . import plot as plotmodule
+from .util import FloatLike, ValueRange
 
 if sys.platform == "win32":
     # pylint: disable=import-error
@@ -427,25 +428,32 @@ def plot(data, colors=FADE_IN, **plotargs):
     return plotmodule.Plot(data, colormap, **plotargs)
 
 
-# XXX matplotlib's "hist2d" takes 'bins' as int (num in both directions),
-#     or [int, int] (num in X and Y),
-#     or [int, int, ...] as edges in both,
-#     or [[int, int, ...], [...]] as edges in the two directions
-# def histplot(
-#    points,
-#    bin_sizes,
-#    ranges=None,
-#    colors=FADE_IN,
-#    border_line=True,
-#    fractional_tick_pos=False,
-#    **plotargs,
-# ):
-#    """Wrapper for binning.bin_data / plot.Plot to simplify 2-D histogram plotting"""
-#    binned_data, x_axis, y_axis = binning.bin_data(
-#        points,
-#        bin_sizes,
-#        ranges=ranges,
-#        border_line=border_line,
-#        fractional_tick_pos=fractional_tick_pos,
-#    )
-#    return plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
+def histplot2d(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    bins: (
+        int
+        | tuple[int, int]
+        | Sequence[FloatLike]
+        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+    ) = 10,
+    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
+    align=True,
+    drop_outside=True,
+    colors=FADE_IN,
+    border_line=True,
+    fractional_tick_pos=False,
+    **plotargs,
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+):
+    """Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting"""
+    binned_data, x_axis, y_axis = binning.histogram2d(
+        points,
+        bins,
+        ranges=ranges,
+        align=align,
+        drop_outside=drop_outside,
+        border_line=border_line,
+        values_are_edges=True,
+        fractional_tick_pos=fractional_tick_pos,
+    )
+    return plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
