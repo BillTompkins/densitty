@@ -54,9 +54,6 @@ def calc_value_range(values: Sequence[FloatLike]) -> ValueRange:
     return ValueRange(min(values), range_top)
 
 
-# TODO: test coverage for specfied edges in histogram2d
-
-
 def pick_edges(
     num_bins: int,
     value_range: ValueRange,

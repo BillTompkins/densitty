@@ -110,6 +110,12 @@ def test_single_valued_data():
     golden.check(binned)
 
 
+def test_hist2d_invalid_args(data):
+    with pytest.raises(ValueError):
+        binning.histogram2d(data, bins=[range(10), 1], ranges=((0,10), (0,10)))
+    with pytest.raises(ValueError):
+        binning.histogram2d(data, bins=[1, range(10)], ranges=((0,10), (0,10)))
+
 def test_bin_data_1(data):
     """provide bin sizes"""
     binned = binning.bin_with_size(data, (1, 1), ((1, 10), (1, 10)))
