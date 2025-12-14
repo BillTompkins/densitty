@@ -442,6 +442,7 @@ def histplot2d(
     colors=FADE_IN,
     border_line=True,
     fractional_tick_pos=False,
+    scale: bool | int = False,
     **plotargs,
     # pylint: disable=too-many-arguments,too-many-positional-arguments
 ):
@@ -453,7 +454,12 @@ def histplot2d(
         align=align,
         drop_outside=drop_outside,
         border_line=border_line,
-        values_are_edges=True,
         fractional_tick_pos=fractional_tick_pos,
     )
-    return plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
+    p = plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
+    if scale is True:
+        p.upscale()
+    elif scale:
+        p.upscale(max_expansion=(scale, scale))
+
+    return p
