@@ -55,7 +55,6 @@ def calc_value_range(values: Sequence[FloatLike]) -> ValueRange:
 
 
 # TODO: test coverage for specfied edges in histogram2d
-# TODO: bin_with_size take single size or tuple
 
 
 def pick_edges(
@@ -120,7 +119,7 @@ def edge_range(start: FloatLike, end: FloatLike, step: FloatLike, align: bool):
 
 def bin_with_size(
     points: Sequence[tuple[FloatLike, FloatLike]],
-    bin_sizes: tuple[FloatLike, FloatLike],
+    bin_sizes: FloatLike | tuple[FloatLike, FloatLike],
     ranges: Optional[tuple[ValueRange, ValueRange]] = None,
     align=True,
     drop_outside=True,
@@ -131,8 +130,8 @@ def bin_with_size(
     Parameters
     ----------
     points: Sequence of (X,Y) tuples: the points to bin
-    bin_sizes: Tuple(float, float)
-                Sizes of (X,Y) bins to partition into
+    bin_sizes: float or tuple(float, float)
+                Size(s) of (X,Y) bins to partition into
     ranges: Optional (ValueRange, ValueRange)
                 ((x_min, x_max), (y_min, y_max)) for the bins. Default: take from data.
     align: bool (default: True)
@@ -150,6 +149,10 @@ def bin_with_size(
         y_range = calc_value_range(tuple(y for _, y in points))
     else:
         x_range, y_range = ValueRange(*ranges[0]), ValueRange(*ranges[1])
+
+    if not isinstance(bin_sizes, tuple):
+        # given just a single bin size: replicate it for both axes:
+        bin_sizes = (bin_sizes, bin_sizes)
 
     x_edges = tuple(edge_range(x_range.min, x_range.max, bin_sizes[0], align))
     y_edges = tuple(edge_range(y_range.min, y_range.max, bin_sizes[1], align))

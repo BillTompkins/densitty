@@ -86,6 +86,11 @@ def test_binning_edge_2(data_to_edge):
     )
     golden.check(binned)
 
+def test_binning_provide_edges(data):
+    """auto-adjust, with bins at 0,1,2,...11"""
+    binned = binning.histogram2d(data, range(12))
+    golden.check(binned)
+
 
 def test_empty_data():
     """pass in blank data"""
@@ -114,6 +119,12 @@ def test_bin_data_1(data):
 def test_bin_data_2(data):
     """provide bin sizes, use calculated data min/max"""
     binned = binning.bin_with_size(data, (1, 1))
+    print(binned[1:])
+    golden.check(binned)
+
+def test_bin_data_3(data):
+    """provide single bin size, use calculated data min/max"""
+    binned = binning.bin_with_size(data, 1)
     print(binned[1:])
     golden.check(binned)
 
