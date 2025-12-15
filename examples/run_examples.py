@@ -12,23 +12,22 @@ exec(gendata)
 
 use_detect = """
 # Use the helper function in 'detect.py' to pick color map based on terminal capabilities, bin the
-# points in 0.25-wide bins, and make a plot with axes:
-from densitty.detect import histplot
+# points into 40x40 bins, and make a plot with axes:
+from densitty.detect import histplot2d
 
-histplot(points, (.25, .25)).show()
-#histplot(points, (.25, .25), ranges=((-10,10), (-10,10))).show()
+histplot2d(points, 40).show()
 """
 print(separator)
 print(use_detect)
 exec(use_detect)
 
 basic = """
-# Bin the data and plot as 2-D histogram
+# Bin the data into fixed-width bins and plot as 2-D histogram
 
-from densitty.binning import bin_data
+from densitty.binning import bin_with_size
 from densitty.plot import Plot
 
-binned, x_axis, y_axis = bin_data(points, (1,1))
+binned, x_axis, y_axis = bin_with_size(points, 1)
 Plot(binned).show()
 """
 print(separator)
@@ -47,9 +46,11 @@ exec(add_axes)
 
 
 add_scaling = """
-# Use explicit bin boundaries, and scale up the output
-binned, x_axis, y_axis = bin_data(points, (1,1), ranges=((-10,10), (-10,10)))
-p = Plot(binned, x_axis=x_axis, y_axis=y_axis)
+# Use explicit bin boundaries, scale up the output, and use a blue-red colormap
+from densitty import truecolor
+
+binned, x_axis, y_axis = bin_with_size(points, 1, ranges=((-10,10), (-10,10)))
+p = Plot(binned, color_map=truecolor.BLUE_RED, x_axis=x_axis, y_axis=y_axis)
 p.upscale((60,60)).show()
 """
 print(separator)
@@ -61,7 +62,7 @@ use_detect = """
 # and use detect.plot, so terminal-capability detection is used to pick a color map
 from densitty.detect import plot
 
-binned, x_axis, y_axis = bin_data(points, (.25, .25), ranges=((-10,10), (-10,10)), border_line=True)
+binned, x_axis, y_axis = bin_with_size(points, (.25, .25), ranges=((-10,10), (-10,10)), border_line=True)
 plot(binned, x_axis=x_axis, y_axis=y_axis).show()
 """
 print(separator)
