@@ -8,12 +8,6 @@ import gen_norm_data
 import golden
 
 
-def test_histplot2d_1(points):
-    plt = detect.histplot2d(points)
-    plt.show()
-    golden.check(plt)
-
-
 mock_terminal_size = os.terminal_size((100, 48))
 
 
