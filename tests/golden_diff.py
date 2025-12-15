@@ -13,10 +13,16 @@ from typing import Iterable
 
 import readchar
 
+from densitty import ansi
+
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 ANSI_LEADINGCOLOR_RE = re.compile(r"^(\x1b\[[^m]*m.)(.*)$")
 MAX_LITERAL_LENGTH = 200_000
 MIN_MARKER_LENGTH = 1
+
+RESET = ansi.RESET
+RED = ansi.compose(["1;38;5;196"])
+YELLOW = ansi.compose(["1;38;5;214"])
 
 
 def strip_ansi(value: str) -> str:
@@ -70,24 +76,22 @@ def marker_line(golden_line: str, new_line: str) -> str:
     ~ : only ANSI/color codes changed
     """
 
-    visible_golden = strip_ansi(golden_line)
-    visible_new = strip_ansi(new_line)
-
-    max_len = max(len(visible_golden), len(visible_new))
-    if golden_line != new_line and visible_golden == visible_new:
-        golden_split = split_ansi(golden_line)
-        new_split = split_ansi(new_line)
-        as_pairs = zip_longest(golden_split, new_split, fillvalue="")
-        diff_list = [" " if x == y else "~" for x, y in as_pairs]
-        return "".join(diff_list)
-
-    markers: list[str] = []
-    for idx in range(max_len):
-        golden_char = visible_golden[idx] if idx < len(visible_golden) else ""
-        new_char = visible_new[idx] if idx < len(visible_new) else ""
-        markers.append("^" if golden_char != new_char else " ")
+    diffchar = {True: "^", False: "~"}
+    golden_split = split_ansi(golden_line)
+    new_split = split_ansi(new_line)
+    as_pairs = zip_longest(golden_split, new_split, fillvalue="")
+    markers = [" " if x == y else diffchar[len(x) == 1 and len(y) == 1] for x, y in as_pairs]
 
     return "".join(markers)
+
+
+def color_line(line: str, marks: str, color_code: str):
+    """per-character colorize line on marked characters, if line isn't already colorized."""
+    if ANSI_ESCAPE_RE.match(line):
+        return line
+    pairs = zip(line, marks)
+    out_list = [color_code + x + ansi.RESET if m == "^" else x for x, m in pairs]
+    return "".join(out_list)
 
 
 def visual_diff(golden_lines: Iterable[str], new_lines: Iterable[str]) -> list[str]:
@@ -100,8 +104,8 @@ def visual_diff(golden_lines: Iterable[str], new_lines: Iterable[str]) -> list[s
             continue
         markers = marker_line(golden_line, new_line)
         output.append(f"line {idx + 1}:")
-        output.append(f"  gold: {golden_line}")
-        output.append(f"   new: {new_line}")
+        output.append(f"  gold: {color_line(golden_line, markers, YELLOW)}{RESET}")
+        output.append(f"   new: {color_line(new_line, markers, RED)}{RESET}")
         if markers.strip():
             output.append(f"  diff: {markers}")
     return output

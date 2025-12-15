@@ -6,11 +6,12 @@ import os
 import platform
 import sys
 from types import MappingProxyType
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 import time
 
-from . import ansi, ascii_art, lineart, truecolor
+from . import ansi, ascii_art, binning, lineart, truecolor
 from . import plot as plotmodule
+from .util import FloatLike, ValueRange
 
 if sys.platform == "win32":
     # pylint: disable=import-error
@@ -421,7 +422,44 @@ def pick_colormap(maps: dict[ColorSupport, Callable]) -> Callable:
     return maps[support]
 
 
-def plot(data, colors=FADE_IN, **kwargs):
+def plot(data, colors=FADE_IN, **plotargs):
     """Wrapper for plot.Plot that picks colormap from dict"""
     colormap = pick_colormap(colors)
-    return plotmodule.Plot(data, colormap, **kwargs)
+    return plotmodule.Plot(data, colormap, **plotargs)
+
+
+def histplot2d(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    bins: (
+        int
+        | tuple[int, int]
+        | Sequence[FloatLike]
+        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+    ) = 10,
+    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
+    align=True,
+    drop_outside=True,
+    colors=FADE_IN,
+    border_line=True,
+    fractional_tick_pos=False,
+    scale: bool | int = False,
+    **plotargs,
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+):
+    """Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting"""
+    binned_data, x_axis, y_axis = binning.histogram2d(
+        points,
+        bins,
+        ranges=ranges,
+        align=align,
+        drop_outside=drop_outside,
+        border_line=border_line,
+        fractional_tick_pos=fractional_tick_pos,
+    )
+    p = plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
+    if scale is True:
+        p.upscale()
+    elif scale:
+        p.upscale(max_expansion=(scale, scale))
+
+    return p
