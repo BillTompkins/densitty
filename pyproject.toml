@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "densitty"
-version = "0.8.1"
+version = "0.8.2"
 description = "densitty - create textual 2-D density plots, heatmaps, and 2-D histograms in Python"
 authors = [{ name = "Bill Tompkins" }]
 readme = "README.md"
@@ -27,8 +27,6 @@ dependencies = [
 ]
 [project.urls]
 Homepage = "https://github.com/BillTompkins/densitty"
-Documentation = "https://densitty.readthedocs.io"
-Repository = "https://github.com/BillTompkins/densitty"
 
 [dependency-groups]
 build = ["build>=1.2.1", "setuptools>=64", "setuptools-scm>=8"]
