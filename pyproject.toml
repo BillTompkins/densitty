@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "densitty"
-version = "0.8.0"
+version = "0.8.1"
 description = "densitty - create textual 2-D density plots, heatmaps, and 2-D histograms in Python"
 authors = [{ name = "Bill Tompkins" }]
 readme = "README.md"
