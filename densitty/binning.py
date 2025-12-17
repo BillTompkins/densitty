@@ -72,6 +72,8 @@ def pick_edges(
               Adjust the range somewhat to put bin size & edges on "round" values
     """
     value_range = decimal_value_range(value_range)  # coerce into Decimal if not already
+    assert isinstance(value_range.min, Decimal)
+    assert isinstance(value_range.max, Decimal)
 
     min_step_size = (value_range.max - value_range.min) / num_bins
     if align:

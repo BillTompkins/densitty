@@ -1,13 +1,20 @@
 """Two-dimensional histogram (density plot) with textual output."""
 
 import dataclasses
-from itertools import chain, zip_longest
 import os
 import sys
-from typing import Callable, Optional, Sequence
+import typing
+from itertools import chain, zip_longest
+from typing import Any, Callable, Optional, Sequence
 
-from . import ansi, axis, lineart
-from .util import FloatLike
+from . import ansi, lineart
+
+if typing.TYPE_CHECKING:
+    from .axis import Axis
+    from .util import FloatLike
+else:
+    Axis = Any
+    FloatLike = Any
 
 # pylint: disable=invalid-name
 # User can set this to provide a default if os.terminal_size() fails:
@@ -27,8 +34,8 @@ class Plot:
     font_mapping: dict = dataclasses.field(default_factory=lambda: lineart.basic_font)
     min_data: Optional[FloatLike] = None
     max_data: Optional[FloatLike] = None
-    x_axis: Optional[axis.Axis] = None
-    y_axis: Optional[axis.Axis] = None
+    x_axis: Optional[Axis] = None
+    y_axis: Optional[Axis] = None
     flip_y: bool = True  # put the first row of data at the bottom of the output
 
     def as_ascii(self):
@@ -98,10 +105,11 @@ class Plot:
 
         if self.y_axis:
             axis_lines = self.y_axis.render_as_y(num_rows, False, bool(self.x_axis), self.flip_y)
+            left_margin = lineart.display_len(axis_lines[0])
         else:
             axis_lines = ["" for _ in range(num_rows + bool(self.x_axis))]
+            left_margin = 0
 
-        left_margin = lineart.display_len(axis_lines[0])
         if self.x_axis:
             x_ticks, x_labels = self.x_axis.render_as_x(num_cols, left_margin)
             axis_lines[-1] = lineart.merge_lines(x_ticks, axis_lines[-1])

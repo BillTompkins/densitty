@@ -1,26 +1,23 @@
 """Utility functions."""
 
+from __future__ import annotations  # for pre-Python 3.12 compatibility
+
+import math
+import typing
+
 from bisect import bisect_left
 from collections import namedtuple
 from decimal import Decimal
-import math
-from typing import Any, Protocol, Sequence, SupportsFloat
+from typing import Any, Sequence
 
 
-class FloatLike[T](SupportsFloat, Protocol):
-    """A Protocol that supports the arithmetic ops we require, and can convert to float"""
-
-    def __lt__(self, __other: T) -> bool: ...
-    def __add__(self, __other: Any) -> T: ...
-    def __sub__(self, __other: Any) -> T: ...
-    def __mul__(self, __other: Any) -> T: ...
-    def __truediv__(self, __other: Any) -> T: ...
-    def __abs__(self) -> T: ...
-
+# FloatLike and Vec are defined in the stubs file util.pyi for type checking
+# At runtime, define as Any so older Python versions don't choke:
+if not typing.TYPE_CHECKING:
+    FloatLike = Any
+    Vec = Any
 
 ValueRange = namedtuple("ValueRange", ["min", "max"])
-
-type Vec = Sequence[FloatLike]
 
 
 def clamp(x, min_x, max_x):
@@ -76,7 +73,7 @@ def nearest(stepwise: Sequence, x: float):
     return stepwise[clamped_idx]
 
 
-def decimal_value_range(v: ValueRange | Sequence):
+def decimal_value_range(v: ValueRange | Sequence) -> ValueRange[Decimal, Decimal]:
     """Produce a ValueRange containing Decimal values"""
     return ValueRange(Decimal(v[0]), Decimal(v[1]))
 
