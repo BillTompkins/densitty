@@ -190,32 +190,20 @@ Character translations
 # Color Maps
 
 ## 16-Color
-- densitty.ansi.FADE_IN_16
-- densitty.ansi.RAINBOW_16
--  densitty.ansi.REV_RAINBOW_16
+![16-Color Colormaps](https://billtompkins.github.io/densitty/docs/16-colors.png)
+Note: these colors are typically user-configurable in terminal emulators, and can vary dramatically from this picture.
 
 ## 256-Color
-- densitty.ansi.BLUE_RED
-- densitty.ansi.COOL
-- densitty.ansi.FADE_IN
-- densitty.ansi.GRAYSCALE
-- densitty.ansi.HOT
-- densitty.ansi.RAINBOW
-- densitty.ansi.REV_RAINBOW
+![256-Color Colormaps](https://billtompkins.github.io/densitty/docs/256-colors.png)
+Note: these colors are often user-configurable in terminal emulators, and can vary from this picture.
 
 # 24-bit / RGB / Truecolor
-- densitty.truecolor.BLUE_RED
-- densitty.truecolor.COOL
-- densitty.truecolor.FADE_IN
-- densitty.truecolor.GRAYSCALE
-- densitty.truecolor.GRAYSCALE_LINEAR
-- densitty.truecolor.HOT
-- densitty.truecolor.RAINBOW
-- densitty.truecolor.REV_RAINBOW
+![RGB Colormaps](https://billtompkins.github.io/densitty/docs/rgb-colors.png)
+Note: less variable than 16-color or 256-color, appearance can still depend on the system, gamma correction, etc.
 
 ## ASCII-Art
-- densitty.ascii_art.DEFAULT
-- densitty.ascii_art.EXTENDED
+![ASCII-Art scales](https://billtompkins.github.io/densitty/docs/ascii-art.png)
+Note: Different fonts can have different "densities" for these characters.
 
 ## Custom color maps
 These functions are used to create the above color maps. Using them to create your own is straightforward; see the code for examples.
