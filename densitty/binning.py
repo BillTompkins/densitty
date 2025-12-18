@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 from .axis import Axis
 from .util import FloatLike, ValueRange
-from .util import clamp, make_value_range, most_round, round_up_ish
+from .util import clamp, make_decimal, make_value_range, most_round, round_up_ish
 
 
 def bin_edges(
@@ -106,7 +106,7 @@ def pick_edges(
     return tuple(first_edge + step_size * i for i in range(num_edges))
 
 
-def edge_range(start: FloatLike, end: FloatLike, step: FloatLike, align: bool):
+def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
     """Similar to range/np.arange, but includes "end" in the output if appropriate"""
     if align:
         v = math.floor(start / step) * step
@@ -157,8 +157,8 @@ def bin_with_size(
         # given just a single bin size: replicate it for both axes:
         bin_sizes = (bin_sizes, bin_sizes)
 
-    x_edges = tuple(edge_range(x_range.min, x_range.max, bin_sizes[0], align))
-    y_edges = tuple(edge_range(y_range.min, y_range.max, bin_sizes[1], align))
+    x_edges = tuple(edge_range(x_range.min, x_range.max, make_decimal(bin_sizes[0]), align))
+    y_edges = tuple(edge_range(y_range.min, y_range.max, make_decimal(bin_sizes[1]), align))
 
     x_axis = Axis(x_range, values_are_edges=True, **axis_args)
     y_axis = Axis(y_range, values_are_edges=True, **axis_args)

@@ -76,19 +76,17 @@ def nearest(stepwise: Sequence, x: float):
     return stepwise[clamped_idx]
 
 
+def make_decimal(x: FloatLike) -> Decimal:
+    """Turn a float into a decimal with reasonable precision,
+    avoiding things like 1.0000000000000002220446049250313080847263336181640625"""
+    if isinstance(x, Decimal):
+        return x
+    return BasicContext.create_decimal_from_float(float(x))
+
+
 def make_value_range(v: ValueRange | Sequence[FloatLike]) -> ValueRange:
     """Produce a ValueRange from from something that may be a sequence of FloatLikes"""
-    if isinstance(v[0], Decimal):
-        v_0 = v[0]
-    else:
-        v_0 = BasicContext.create_decimal_from_float(float(v[0]))
-
-    if isinstance(v[1], Decimal):
-        v_1 = v[1]
-    else:
-        v_1 = BasicContext.create_decimal_from_float(float(v[1]))
-
-    return ValueRange(v_0, v_1)
+    return ValueRange(make_decimal(v[0]), make_decimal(v[1]))
 
 
 def sfrexp10(value):
