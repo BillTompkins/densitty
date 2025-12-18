@@ -234,10 +234,12 @@ def pick_step_size(value_range, num_steps_hint, min_steps_per_label=1) -> tuple[
             steps_per_label = 5
     elif frac < 5.5:
         step = 5 * decade
-        # ticks every .5, don't label every 5th
-        if steps_per_label == 5:
-            steps_per_label = max(round(min_steps_per_label / 2) * 2, 6)
+        if min_steps_per_label == 4:
+            num_steps = (value_range.max - value_range.min) // step
+            if num_steps % 5 == 0:
+                steps_per_label = 5
+            else:
+                steps_per_label = 4
     else:
         step = 10 * decade
-
     return step, step * steps_per_label
