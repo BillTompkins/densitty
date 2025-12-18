@@ -19,6 +19,7 @@ if not typing.TYPE_CHECKING:
 
 class ValueRange(NamedTuple):
     """Encapsulates a range from min..max"""
+
     min: Decimal
     max: Decimal
 
