@@ -1,10 +1,11 @@
 import pytest
 import sys
 
-from densitty import ansi, ascii_art, plot, truecolor
+from densitty import ansi, ascii_art, axis, plot, truecolor
 import golden
 
 ramp_data = [[x * 0.1 - 1 for x in range(110)], [10 - x * 0.1 for x in range(110)]]
+
 color_maps = [
     "truecolor.GRAYSCALE",
     "truecolor.GRAYSCALE_LINEAR",
@@ -16,6 +17,7 @@ color_maps = [
     "ansi.RAINBOW_16",
     "truecolor.FADE_IN",
     "ansi.FADE_IN",
+    "ansi.FADE_IN_16",
     "truecolor.HOT",
     "ansi.HOT",
     "truecolor.COOL",
@@ -39,7 +41,8 @@ def test_halfheight_colors(map_name, display=False):
 
 def display_colormap(colormap):
     color_mapping = eval(colormap)
-    p = plot.Plot(ramp_data[0:1], color_map=color_mapping, render_halfheight=False)
+    x_axis = axis.Axis((0, 1), border_line=True)
+    p = plot.Plot(ramp_data[0:1], color_map=color_mapping, x_axis=x_axis, render_halfheight=False)
     print(colormap)
     p.show()
 
