@@ -6,9 +6,8 @@ import math
 import typing
 
 from bisect import bisect_left
-from collections import namedtuple
-from decimal import Decimal
-from typing import Any, Sequence
+from decimal import Decimal, BasicContext
+from typing import Any, NamedTuple, Sequence
 
 
 # FloatLike and Vec are defined in the stubs file util.pyi for type checking
@@ -17,7 +16,11 @@ if not typing.TYPE_CHECKING:
     FloatLike = Any
     Vec = Any
 
-ValueRange = namedtuple("ValueRange", ["min", "max"])
+
+class ValueRange(NamedTuple):
+    """Encapsulates a range from min..max"""
+    min: Decimal
+    max: Decimal
 
 
 def clamp(x, min_x, max_x):
@@ -73,9 +76,19 @@ def nearest(stepwise: Sequence, x: float):
     return stepwise[clamped_idx]
 
 
-def decimal_value_range(v: ValueRange | Sequence) -> ValueRange[Decimal, Decimal]:
-    """Produce a ValueRange containing Decimal values"""
-    return ValueRange(Decimal(v[0]), Decimal(v[1]))
+def make_value_range(v: ValueRange | Sequence[FloatLike]) -> ValueRange:
+    """Produce a ValueRange from from something that may be a sequence of FloatLikes"""
+    if isinstance(v[0], Decimal):
+        v_0 = v[0]
+    else:
+        v_0 = BasicContext.create_decimal_from_float(float(v[0]))
+
+    if isinstance(v[1], Decimal):
+        v_1 = v[1]
+    else:
+        v_1 = BasicContext.create_decimal_from_float(float(v[1]))
+
+    return ValueRange(v_0, v_1)
 
 
 def sfrexp10(value):
