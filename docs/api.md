@@ -130,7 +130,7 @@ Detect support for combining unicode characters by seeing how far cursor advance
 we output one. See ucs-detect / blessed projects for more full-featured detection
 
 ### Colormap Dictionaries
-Some dicts mapping ColorSupport level to colormaps are provided:
+Some dicts mapping ColorSupport level to [Color Maps](#color-maps) are provided:
 #### detect.GRAYSCALE
 Maps to Truecolor / 256-color Grayscale, or to ASCII-Art
 #### detect.FADE_IN
@@ -155,7 +155,7 @@ Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting
   - True (default): Drop any data points outside the ranges
   - False: Put any outside points in closest bin (i.e. edge bins include outliers)
 - `colors`: dict
-  - Dict mapping ColorSupport -> Colormap (Default: `FADE_IN`)
+  - Dict mapping ColorSupport -> Colormap (Default: [FADE_IN](#detectfade_in))
 - `border_line`: Include a line along the axis in the output. Default True
 - `fractional_tick_pos`: Use various characters to indicate where an axis tick is, rather than just "-" or "|". Default False
 - `scale`: True, False, or int
@@ -169,13 +169,13 @@ Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting
 
 Detect color support and pick the best color map
 
-### densitty.detect.plot(data, colors=FADE_IN, \*\*plotargs)
+### densitty.detect.plot(data, colors, \*\*plotargs)
 Wrapper for plot.Plot that picks colormap from dict
 - `data`: Two-dimensional values (e.g. list of lists of floats)
 - `colors`: dict
-  - Dict mapping ColorSupport -> Colormap (Default: `FADE_IN`)
+  - Dict mapping ColorSupport -> Colormap (Default: [FADE_IN](#detectfade_in))
 - `plotargs`
-  - Extra arguments to pass to `Plot` constructor.
+  - Extra arguments to pass to [`Plot` constructor](#class-densittyplotplotdata-color_map-render_halfheight-font_mapping-min_data-max_data-x_axis-y_axis-flip_y)
 
 
 ## densitty.lineart module
