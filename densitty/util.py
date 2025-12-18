@@ -122,7 +122,7 @@ round_fractions = (
 
 
 def round_up_ish(value, round_fracs=round_fractions):
-    """'Round' the value up to the next highest value in 'round_vals' times a multiple of 10
+    """'Round' the value up to the next highest value in 'round_fracs' times a multiple of 10
 
     Parameters
     ----------

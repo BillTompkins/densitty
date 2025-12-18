@@ -11,4 +11,4 @@ Generate 2-D histograms (density plots, heat maps, eye diagrams) similar to [mat
 
 ## [Color, Size, and Glyph Support](https://billtompkins.github.io/densitty/docs/terminal_support.html)
 
-## API (TODO)
+## [API](https://billtompkins.github.io/densitty/docs/api.html)
