@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 from .axis import Axis
 from .util import FloatLike, ValueRange
-from .util import clamp, decimal_value_range, most_round, round_up_ish
+from .util import clamp, make_decimal, make_value_range, most_round, round_up_ish
 
 
 def bin_edges(
@@ -45,13 +45,17 @@ def calc_value_range(values: Sequence[FloatLike]) -> ValueRange:
     """Calculate a value range from data values"""
     if not values:
         # Could raise an exception here, but for now just return _something_
-        return ValueRange(0, 1)
+        return make_value_range((0, 1))
 
     # bins are closed on left and open on right: i.e. left_edge <= values < right_edge
     # so, the right-most bin edge needs to be larger than the largest data value:
     max_value = max(values)
-    range_top = max_value + math.ulp(max_value)  # increase by smallest representable amount
-    return ValueRange(min(values), range_top)
+    min_value = min(values)
+    data_value_range = make_value_range((min_value, max_value))
+    range_top = data_value_range.max + Decimal(
+        math.ulp(data_value_range.max)
+    )  # increase by smallest representable amount
+    return ValueRange(data_value_range.min, range_top)
 
 
 def pick_edges(
@@ -71,7 +75,9 @@ def pick_edges(
     align: bool
               Adjust the range somewhat to put bin size & edges on "round" values
     """
-    value_range = decimal_value_range(value_range)  # coerce into Decimal if not already
+    value_range = make_value_range(value_range)  # coerce into Decimal if not already
+    assert isinstance(value_range.min, Decimal)
+    assert isinstance(value_range.max, Decimal)
 
     min_step_size = (value_range.max - value_range.min) / num_bins
     if align:
@@ -100,7 +106,7 @@ def pick_edges(
     return tuple(first_edge + step_size * i for i in range(num_edges))
 
 
-def edge_range(start: FloatLike, end: FloatLike, step: FloatLike, align: bool):
+def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
     """Similar to range/np.arange, but includes "end" in the output if appropriate"""
     if align:
         v = math.floor(start / step) * step
@@ -145,14 +151,14 @@ def bin_with_size(
         x_range = calc_value_range(tuple(x for x, _ in points))
         y_range = calc_value_range(tuple(y for _, y in points))
     else:
-        x_range, y_range = ValueRange(*ranges[0]), ValueRange(*ranges[1])
+        x_range, y_range = make_value_range(ranges[0]), make_value_range(ranges[1])
 
     if not isinstance(bin_sizes, tuple):
         # given just a single bin size: replicate it for both axes:
         bin_sizes = (bin_sizes, bin_sizes)
 
-    x_edges = tuple(edge_range(x_range.min, x_range.max, bin_sizes[0], align))
-    y_edges = tuple(edge_range(y_range.min, y_range.max, bin_sizes[1], align))
+    x_edges = tuple(edge_range(x_range.min, x_range.max, make_decimal(bin_sizes[0]), align))
+    y_edges = tuple(edge_range(y_range.min, y_range.max, make_decimal(bin_sizes[1]), align))
 
     x_axis = Axis(x_range, values_are_edges=True, **axis_args)
     y_axis = Axis(y_range, values_are_edges=True, **axis_args)
@@ -209,7 +215,7 @@ def histogram2d(
         if ranges is None or ranges[0] is None:
             x_range = calc_value_range(tuple(x for x, _ in points))
         else:
-            x_range = ValueRange(*ranges[0])
+            x_range = ranges[0]
 
         x_edges = pick_edges(bins[0], x_range, align)
     else:
@@ -224,7 +230,7 @@ def histogram2d(
         if ranges is None or ranges[1] is None:
             y_range = calc_value_range(tuple(y for _, y in points))
         else:
-            y_range = ValueRange(*ranges[1])
+            y_range = ranges[1]
 
         y_edges = pick_edges(bins[1], y_range, align)
     else:

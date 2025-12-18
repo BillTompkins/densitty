@@ -1,5 +1,6 @@
 """ANSI "True color" (24b, 16M colors) support."""
 
+import operator
 import math
 
 from typing import Optional, Sequence
@@ -37,7 +38,7 @@ def _linear_rgb_to_rgb(channel):
 
 def _vector_transform(v, m):
     """Returns v * m, where v is a vector and m is a matrix (list of columns)."""
-    return [math.sumprod(v, col) for col in m]
+    return [sum(map(operator.mul, v, col)) for col in m]
 
 
 def _rgb_to_lab(rgb: Vec) -> Vec:

@@ -13,7 +13,8 @@ golden-accept:
 
 .PHONY: lint
 lint:
-	PYTHONPATH=. uv run --with pylint,rich python -m pylint densitty
+# Ignore stub file, as it seems to confuse pylint
+	PYTHONPATH=. uv run --with pylint,rich python -m pylint --ignore util.pyi densitty
 
 .PHONY: format
 format:

@@ -3,7 +3,7 @@ import itertools
 import pytest
 
 from densitty import ansi, ascii_art, axis, lineart, plot, truecolor
-from densitty.util import ValueRange
+from densitty.util import make_value_range, ValueRange
 
 import gen_norm_data
 import golden
@@ -16,7 +16,7 @@ def data():
 
 
 # Some different value ranges to exercise fractional tick options
-ranges = (ValueRange(-1, x) for x in [0, 0.1, 1, 1.5, 2, 10])
+ranges = (make_value_range((-1, x)) for x in [0, 0.1, 1, 1.5, 2, 10])
 
 
 combinations = itertools.product(
