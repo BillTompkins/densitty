@@ -16,7 +16,17 @@ from .util import FloatLike, ValueRange
 if sys.platform == "win32":
     # pylint: disable=import-error
     import ctypes
-    from ctypes.WinDLL.kernel32 import GetConsoleMode, GetStdHandle, SetConsoleMode
+    sys.stderr.write(f"CTYPES type {type(ctypes)}")
+    sys.stderr.write(f"CTYPES: {dir(ctypes)}")
+    sys.stderr.write(f"sub-WINDLL type : {type(ctypes.windll)}")
+    from ctypes import windll
+    sys.stderr.write(f"WINDLL: {type(windll)}")
+    sys.stderr.write(f"\n\nWINDLL: {dir(windll)}")
+    sys.stderr.write(f"\n\nWINDLL.kernel32: {type(windll.kernel32)}")
+    sys.stderr.write("HERE")
+    from windll import kernel32
+    sys.stderr.write(f"KERNEL32: {dir(kernel32)}")
+    from kernel32 import GetConsoleMode, GetStdHandle, SetConsoleMode
 else:
     # All other platforms should have TERMIOS available
     import fcntl
