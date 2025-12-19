@@ -1,0 +1,39 @@
+# For documentation on GitHub Actions Workflows, see:
+# https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions
+name: Checks
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Needed for setuptools_scm to work correctly
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+          allow-prereleases: true
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Run lint
+        run: uv run --with pylint python -m pylint --ignore util.pyi densitty
+
+      - name: Check format
+        run: uv run --with black python -m black -l 99 --check densitty/*.py tests/*.py

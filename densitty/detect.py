@@ -16,7 +16,8 @@ from .util import FloatLike, ValueRange
 if sys.platform == "win32":
     # pylint: disable=import-error
     import ctypes
-    from ctypes.windll.kernel32 import GetConsoleMode, GetStdHandle, SetConsoleMode
+
+    kernel32 = ctypes.windll.kernel32
 else:
     # All other platforms should have TERMIOS available
     import fcntl
@@ -86,10 +87,10 @@ if sys.platform == "win32":
         """Windows-based wrapper to avoid control code output to stdout"""
         prev_stdin_mode = ctypes.wintypes.DWORD(0)
         prev_stdout_mode = ctypes.wintypes.DWORD(0)
-        GetConsoleMode(GetStdHandle(-10), ctypes.byref(prev_stdin_mode))
-        SetConsoleMode(GetStdHandle(-10), 0)
-        GetConsoleMode(GetStdHandle(-11), ctypes.byref(prev_stdout_mode))
-        SetConsoleMode(GetStdHandle(-11), 7)
+        kernel32.GetConsoleMode(kernel32.GetStdHandle(-10), ctypes.byref(prev_stdin_mode))
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), 0)
+        kernel32.GetConsoleMode(kernel32.GetStdHandle(-11), ctypes.byref(prev_stdout_mode))
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
         # On Windows, don't try to be non-blocking, just read until terminator
         if length is None:
@@ -106,8 +107,8 @@ if sys.platform == "win32":
                     break
             return response
         finally:
-            SetConsoleMode(GetStdHandle(-10), ctypes.byref(prev_stdin_mode))
-            SetConsoleMode(GetStdHandle(-11), ctypes.byref(prev_stdout_mode))
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), ctypes.byref(prev_stdin_mode))
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), ctypes.byref(prev_stdout_mode))
 
 else:
     # Not Windows, so use termios/fcntl:
