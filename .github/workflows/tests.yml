@@ -43,6 +43,4 @@ jobs:
         run: uv run --with pylint python -m pylint --ignore util.pyi densitty
 
       - name: Check format
-        run:
-          uv run --with black python -m black -l 99 --check densitty/*.py
-          uv run --with black python -m black -l 99 --check tests/*.py
+        run: uv run --with black python -m black -l 99 --check densitty/*.py tests/*.py
