@@ -1,11 +1,16 @@
+TEST_PACKAGES := numpy,pytest,readchar,rich
+
+.PHONY: test-ci
+test-ci:
+	PYTHONPATH=. uv run --with $(TEST_PACKAGES) python -m pytest tests/*.py
+
 .PHONY: test
-test:
-	PYTHONPATH=. uv run --with numpy,pytest,readchar,rich python -m pytest tests/*.py
-	PYTHONPATH=. uv run --with numpy,pytest,readchar,pytest-cov python -m pytest --cov=densitty tests/*.py
+test: test-ci  # Add output to show current test coverage, but no report
+	PYTHONPATH=. uv run --with $(TEST_PACKAGES),pytest-cov python -m pytest --cov=densitty tests/*.py
 
 .PHONY: testcov
-testcov:
-	PYTHONPATH=. uv run --with numpy,pytest,pytest-cov,readchar python -m pytest --cov=densitty --cov-report=html tests/*.py
+testcov:  # Output test coverage report
+	PYTHONPATH=. uv run --with $(TEST_PACKAGES),pytest-cov python -m pytest --cov=densitty --cov-report=html tests/*.py
 
 .PHONY: golden-accept
 golden-accept:
@@ -21,11 +26,18 @@ format:
 	uv run --with black python -m black -l 99 densitty/*.py
 	uv run --with black python -m black -l 99 tests/*.py
 
+.PHONY: check-format
+check-format:
+	uv run --with black python -m black -l 99 --check densitty/*.py tests/*.py
+
 .PHONY: typecheck
 typecheck:
 	PYTHONPATH=. uv run --with mypy,rich python -m mypy densitty
 	PYTHONPATH=. uv run --with mypy,numpy,rich python -m mypy tests/numpy_tests.py
 	PYTHONPATH=. uv run --with mypy,rich python -m mypy tests/axis_tests.py
+
+.PHONY: check
+check: lint check-format typecheck test
 
 .PHONY: colors
 colors:

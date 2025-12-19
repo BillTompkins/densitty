@@ -16,7 +16,7 @@ from .util import FloatLike, ValueRange
 if sys.platform == "win32":
     # pylint: disable=import-error
     import ctypes
-    from ctypes.windll.kernel32 import GetConsoleMode, GetStdHandle, SetConsoleMode
+    from ctypes.WinDLL.kernel32 import GetConsoleMode, GetStdHandle, SetConsoleMode
 else:
     # All other platforms should have TERMIOS available
     import fcntl
