@@ -106,8 +106,8 @@ if sys.platform == "win32":
                     break
             return response
         finally:
-            SetConsoleMode(GetStdHandle(-10), ctypes.byref(prev_stdin_mode))
-            SetConsoleMode(GetStdHandle(-11), ctypes.byref(prev_stdout_mode))
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), ctypes.byref(prev_stdin_mode))
+            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), ctypes.byref(prev_stdout_mode))
 
 else:
     # Not Windows, so use termios/fcntl:
