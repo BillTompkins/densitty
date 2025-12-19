@@ -5,11 +5,11 @@ test-ci:
 	PYTHONPATH=. uv run --with $(TEST_PACKAGES) python -m pytest tests/*.py
 
 .PHONY: test
-test: test-ci  # Add output to show current test coverage, but no report
+test: test-ci ## Add output to show current test coverage, but no report
 	PYTHONPATH=. uv run --with $(TEST_PACKAGES),pytest-cov python -m pytest --cov=densitty tests/*.py
 
 .PHONY: testcov
-testcov:  # Output test coverage report
+testcov: ## Output test coverage report
 	PYTHONPATH=. uv run --with $(TEST_PACKAGES),pytest-cov python -m pytest --cov=densitty --cov-report=html tests/*.py
 
 .PHONY: golden-accept
@@ -18,7 +18,7 @@ golden-accept:
 
 .PHONY: lint
 lint:
-# Ignore stub file, as it seems to confuse pylint
+## Ignore stub file, as it seems to confuse pylint
 	PYTHONPATH=. uv run --with pylint,rich python -m pylint --ignore util.pyi densitty
 
 .PHONY: format
@@ -36,7 +36,7 @@ typecheck:
 	PYTHONPATH=. uv run --with mypy,numpy,rich python -m mypy tests/numpy_tests.py
 	PYTHONPATH=. uv run --with mypy,rich python -m mypy tests/axis_tests.py
 
-.PHONY: check
+.PHONY: check ## essentially the same as the presubmit checks
 check: lint check-format typecheck test
 
 .PHONY: colors

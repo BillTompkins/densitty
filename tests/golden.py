@@ -11,7 +11,7 @@ def check(content, check_name=None):
     else:
         content_str = str(content)
 
-    content_bytes = content_str.encode('utf-8')
+    content_bytes = content_str.encode("utf-8")
 
     if check_name is None:
         check_name = inspect.stack()[1].function

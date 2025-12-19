@@ -16,6 +16,7 @@ from .util import FloatLike, ValueRange
 if sys.platform == "win32":
     # pylint: disable=import-error
     import ctypes
+
     kernel32 = ctypes.windll.kernel32
 else:
     # All other platforms should have TERMIOS available
