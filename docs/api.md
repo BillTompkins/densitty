@@ -95,6 +95,52 @@ Bin points into a 2-D histogram, given number of bins, or bin edges
 returns tuple: (Sequence[Sequence[int]], (x-)Axis, (y-)Axis)
 
 
+# densitty.kernel
+
+### densitty.kernel.kernel_edges(points, x_edges, y_edges, kernel, drop_outside)
+
+Apply a smoothing kernel across a 2-D grid defined by bin edges.
+
+- `points`: Sequence of (X,Y) tuples
+  - The points to smooth
+- `x_edges`: Sequence[float]
+  - Edges of the X bins (N+1 values for N bins)
+- `y_edges`: Sequence[float]
+  - Edges of the Y bins (N+1 values for N bins)
+- `kernel`: Callable
+  - Function taking (dx, dy) and returning a weight
+- `drop_outside`: bool (default: True)
+  - True: Drop any data points outside the ranges
+  - False: Include all points regardless of position
+
+returns: Sequence[Sequence[float]]
+
+### densitty.kernel.kernel2d(points, bins, kernel, ranges, align, drop_outside, \*\*axis_args)
+
+Generate smoothed plot data from point input using a kernel function. Similar to histogram2d.
+
+- `points`: Sequence of (X,Y) tuples
+  - The points to smooth
+- `bins`: int or (int, int) or [float,…] or ([float,…], [float,…])
+  - If int: number of bins for both X & Y (default: 10)
+  - If (int,int): number of bins in X, number of bins in Y
+  - If list[float]: bin edges for both X & Y
+  - If (list[float], list[float]): bin edges for X, bin edges for Y
+- `kernel`: Callable
+  - Function taking (dx, dy) and returning a weight
+- `ranges`: Optional (ValueRange, ValueRange)
+  - ((x_min, x_max), (y_min, y_max)) for the bins if # of bins is provided
+  - If None (default): take from data.
+- `align`: bool (default: True)
+  - Pick bin edges at ‘round’ values if # of bins is provided
+- `drop_outside`: bool (default: True)
+  - True: Drop any data points outside the ranges
+  - False: Include all points regardless of position
+- `axis_args`: Extra arguments to pass through to Axis constructor
+
+returns tuple: (Sequence[Sequence[float]], (x-)Axis, (y-)Axis)
+
+
 # densitty.detect module
 
 Utility functions to try to detect terminal/font capabilities
