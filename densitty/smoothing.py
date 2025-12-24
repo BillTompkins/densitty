@@ -97,19 +97,29 @@ def smooth_to_bins(
     x_centers: Sequence of values: Centers of output columns
     y_centers: Sequence of values: Centers of output rows
     """
+    x_ctr_f = [float(x) for x in x_centers]
+    y_ctr_f = [float(y) for y in y_centers]
+
     out = [ [0] * len(x_centers) for _ in range(len(y_centers)) ]
 
-    # Could optimize by starting at bin closest to each point, and move
-    # out until contribution is less than some limit
-
+    # Make the assumption that the bin centers are evenly spaced, so we can
+    # calculate bin position from index and vice versa
+    x_delta = x_ctr_f[1] - x_ctr_f[0]
+    y_delta = y_ctr_f[1] - y_ctr_f[0]
+    kernel_width = int(func_width(kernel) // x_delta) + 1
+    kernel_height = int(func_height(kernel) // y_delta) + 1
     for x, y in points:
         x_f, y_f = float(x), float(y)
-        for x_idx, bin_x in enumerate(x_centers):
-            bin_x_f = float(bin_x)
-            for y_idx, bin_y in enumerate(y_centers):
-                bin_y_f = float(bin_y)
-                contrib = kernel(((x_f - bin_x_f), (y_f - bin_y_f)))
-                out[y_idx][x_idx] += contrib
+        ctr_x_i = round((x_f - x_ctr_f[0]) / x_delta)
+        start_x_i = ctr_x_i - kernel_width
+        end_x_i = ctr_x_i + kernel_width + 1
+        for x_i, bin_x in enumerate(x_ctr_f[start_x_i : end_x_i], start_x_i):
+            ctr_y_i = round((y_f - y_ctr_f[0]) / y_delta)
+            start_y_i = ctr_y_i - kernel_width
+            end_y_i = ctr_y_i + kernel_width + 1
+            for y_i, bin_y in enumerate(y_ctr_f[start_y_i : end_y_i], start_y_i):
+                contrib = kernel(((x_f - bin_x), (y_f - bin_y)))
+                out[y_i][x_i] += contrib
     return out
 
 def smooth2d(
