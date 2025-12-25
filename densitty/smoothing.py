@@ -1,14 +1,12 @@
 """Creation of 2-D density maps for (x,y) data"""
 
 import math
-from bisect import bisect_right
-from decimal import Decimal
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
 from .binning import calc_value_range, pick_edges
 from .util import FloatLike, ValueRange
-from .util import clamp, make_decimal, make_value_range, most_round, round_up_ish
+from .util import make_decimal
 
 SmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
 
@@ -24,6 +22,7 @@ def gaussian(delta: tuple[FloatLike, FloatLike],
     return math.exp(-exponent / 2)
 
 def gaussian_with_sigma(inv_sigma) -> FloatLike:
+    """Produce a kernel function for a Gaussian with specified (inverse) width"""
     def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
         return gaussian(delta, inv_sigma)
     return out
@@ -33,6 +32,7 @@ def gaussian_with_sigma(inv_sigma) -> FloatLike:
 # invert 2x2: [[d, -b], [-c, a]] / (a*d - b*c)
 
 def triangle(width_x, width_y) -> SmoothingFunc:
+    """Produce a kernel function for a 2-D triangle with specified width/height"""
     def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
         x_factor = max(0.0, width_x / 2 - abs(delta[0]))
         y_factor = max(0.0, width_y / 2 - abs(delta[1]))
@@ -41,6 +41,7 @@ def triangle(width_x, width_y) -> SmoothingFunc:
 
 
 def func_span(f: Callable):
+    """Calculate the half-width at half-height of a function"""
     maximum = f(0)
     target = maximum / 2
     # variables 'upper' and 'lower' s.t. f(lower) > maximum/3 and f(upper) < maximum/2
@@ -73,11 +74,13 @@ def func_span(f: Callable):
     return (lower + upper) / 2
 
 def func_width(f: SmoothingFunc):
+    """Width in X"""
     def f_x(x):
         return f((x, 0))
     return func_span(f_x)
 
 def func_height(f: SmoothingFunc):
+    """Height in Y"""
     def f_y(y):
         return f((0, y))
     return func_span(f_y)
@@ -106,8 +109,8 @@ def smooth_to_bins(
     # calculate bin position from index and vice versa
     x_delta = x_ctr_f[1] - x_ctr_f[0]
     y_delta = y_ctr_f[1] - y_ctr_f[0]
-    kernel_width = int(func_width(kernel) // x_delta) + 1
-    kernel_height = int(func_height(kernel) // y_delta) + 1
+    kernel_width = 2 * (int(func_width(kernel) // x_delta) + 1)
+    kernel_height = 2 * (int(func_height(kernel) // y_delta) + 1)
     for x, y in points:
         x_f, y_f = float(x), float(y)
         ctr_x_i = round((x_f - x_ctr_f[0]) / x_delta)
@@ -115,8 +118,8 @@ def smooth_to_bins(
         end_x_i = ctr_x_i + kernel_width + 1
         for x_i, bin_x in enumerate(x_ctr_f[start_x_i : end_x_i], start_x_i):
             ctr_y_i = round((y_f - y_ctr_f[0]) / y_delta)
-            start_y_i = ctr_y_i - kernel_width
-            end_y_i = ctr_y_i + kernel_width + 1
+            start_y_i = ctr_y_i - kernel_height
+            end_y_i = ctr_y_i + kernel_height + 1
             for y_i, bin_y in enumerate(y_ctr_f[start_y_i : end_y_i], start_y_i):
                 contrib = kernel(((x_f - bin_x), (y_f - bin_y)))
                 out[y_i][x_i] += contrib
@@ -172,12 +175,13 @@ def smooth2d(
         # we were given the number of bins for X. Calculate the edges:
         if ranges is None or ranges[0] is None:
             x_range = calc_value_range(tuple(x for x, _ in points))
-            padding = Decimal(func_width(kernel))
+            padding = make_decimal(func_width(kernel))
             x_range = ValueRange(x_range[0] - padding, x_range[1] + padding)
         else:
             x_range = ranges[0]
 
-        # re-using the binning 'pick_edges' logic to pick centers, but there is one fewer "center" than edge:
+        # re-use the binning 'pick_edges' logic to pick centers,
+        # but there is one fewer "center" than edge so subtract 1
         # TODO: refactor/rename?
         x_centers = pick_edges(bins[0] - 1, x_range, align)
     else:
@@ -191,7 +195,7 @@ def smooth2d(
         # we were given the number of bins. Calculate the edges:
         if ranges is None or ranges[1] is None:
             y_range = calc_value_range(tuple(y for _, y in points))
-            padding = Decimal(func_height(kernel))
+            padding = make_decimal(func_height(kernel))
             y_range = ValueRange(y_range[0] - padding, y_range[1] + padding)
         else:
             y_range = ranges[1]
