@@ -37,6 +37,8 @@ def triangle(width_x, width_y) -> SmoothingFunc:
         x_factor = max(0.0, width_x / 2 - abs(delta[0]))
         y_factor = max(0.0, width_y / 2 - abs(delta[1]))
         return x_factor * y_factor
+    out.widths = (width_x / 2, width_y / 2)
+    out.half_height_widths = (width_x / 4, width_y / 4)
     return out
 
 
@@ -73,17 +75,27 @@ def func_span(f: Callable):
 
     return (lower + upper) / 2
 
-def func_width(f: SmoothingFunc):
-    """Width in X"""
+def func_width_half_height(f: SmoothingFunc):
+    """Provide the (half) width of the function at half height (HWHM)"""
+
+    if "half_height_widths" in dir(f):
+        return f.half_height_widths
+    # No user-provided width information. Calculate it:
     def f_x(x):
         return f((x, 0))
-    return func_span(f_x)
-
-def func_height(f: SmoothingFunc):
-    """Height in Y"""
     def f_y(y):
         return f((0, y))
-    return func_span(f_y)
+    return func_span(f_x), func_span(f_y)
+
+def func_width(f: SmoothingFunc):
+    """Provide the (half) width of the function that includes nearly all of the area"""
+
+    if "widths" in dir(f):
+        return f.widths
+    # No user-provided width information. Return 3* the width at half-height
+    half_height_width = func_width_half_height(f)
+    return (3 * half_height_width[0], 3 * half_height_width[1])
+
 
 def smooth_to_bins(
     points: Sequence[tuple[FloatLike, FloatLike]],
@@ -109,17 +121,19 @@ def smooth_to_bins(
     # calculate bin position from index and vice versa
     x_delta = x_ctr_f[1] - x_ctr_f[0]
     y_delta = y_ctr_f[1] - y_ctr_f[0]
-    kernel_width = 2 * (int(func_width(kernel) // x_delta) + 1)
-    kernel_height = 2 * (int(func_height(kernel) // y_delta) + 1)
+
+    kernel_width, kernel_height = func_width(kernel)
+    kernel_width_di = round(kernel_width // x_delta) + 1
+    kernel_height_di = round(kernel_height // y_delta) + 1
     for x, y in points:
         x_f, y_f = float(x), float(y)
         ctr_x_i = round((x_f - x_ctr_f[0]) / x_delta)
-        start_x_i = ctr_x_i - kernel_width
-        end_x_i = ctr_x_i + kernel_width + 1
+        start_x_i = ctr_x_i - kernel_width_di
+        end_x_i = ctr_x_i + kernel_width_di + 1
         for x_i, bin_x in enumerate(x_ctr_f[start_x_i : end_x_i], start_x_i):
             ctr_y_i = round((y_f - y_ctr_f[0]) / y_delta)
-            start_y_i = ctr_y_i - kernel_height
-            end_y_i = ctr_y_i + kernel_height + 1
+            start_y_i = ctr_y_i - kernel_height_di
+            end_y_i = ctr_y_i + kernel_height_di + 1
             for y_i, bin_y in enumerate(y_ctr_f[start_y_i : end_y_i], start_y_i):
                 contrib = kernel(((x_f - bin_x), (y_f - bin_y)))
                 out[y_i][x_i] += contrib
@@ -163,6 +177,8 @@ def smooth2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
+    padding = tuple(map(make_decimal, func_width_half_height(kernel)))
+
     if isinstance(bins, int):
         # we were given a single # of bins
         bins = (bins, bins)
@@ -175,8 +191,7 @@ def smooth2d(
         # we were given the number of bins for X. Calculate the edges:
         if ranges is None or ranges[0] is None:
             x_range = calc_value_range(tuple(x for x, _ in points))
-            padding = make_decimal(func_width(kernel))
-            x_range = ValueRange(x_range[0] - padding, x_range[1] + padding)
+            x_range = ValueRange(x_range[0] - padding[0], x_range[1] + padding[0])
         else:
             x_range = ranges[0]
 
@@ -195,8 +210,7 @@ def smooth2d(
         # we were given the number of bins. Calculate the edges:
         if ranges is None or ranges[1] is None:
             y_range = calc_value_range(tuple(y for _, y in points))
-            padding = make_decimal(func_height(kernel))
-            y_range = ValueRange(y_range[0] - padding, y_range[1] + padding)
+            y_range = ValueRange(y_range[0] - padding[1], y_range[1] + padding[1])
         else:
             y_range = ranges[1]
         # TODO: Same as X
