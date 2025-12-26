@@ -4,11 +4,12 @@ import math
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
-from .binning import process_bin_args
+from .binning import expand_bins_arg, process_bin_args
 from .util import FloatLike, ValueRange
 from .util import make_decimal
 
-SmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
+# XXX How to tell type system that this callable/function may have attributes attached?
+SmoothingFunc = Callable[[tuple[FloatLike, FloatLike]], FloatLike]
 
 def gaussian(delta: tuple[FloatLike, FloatLike],
              inv_cov: tuple[tuple[FloatLike, FloatLike], tuple[FloatLike, FloatLike]]):
@@ -21,7 +22,7 @@ def gaussian(delta: tuple[FloatLike, FloatLike],
                 (delta[1] * delta[1] * inv_cov[1][1]))
     return math.exp(-exponent / 2)
 
-def gaussian_with_sigma(inv_sigma) -> FloatLike:
+def gaussian_with_sigma(inv_sigma) -> SmoothingFunc:
     """Produce a kernel function for a Gaussian with specified (inverse) width"""
     def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
         return gaussian(delta, inv_sigma)
@@ -47,7 +48,7 @@ def func_span(f: Callable):
     maximum = f(0)
     target = maximum / 2
     # variables 'upper' and 'lower' s.t. f(lower) > maximum/3 and f(upper) < maximum/2
-    lower, upper = 0, 1
+    lower, upper = 0.0, 1.0
     # Interval might not contain target, so double 'upper' until it does
     for _ in range(100):
         if  f(upper) <= target:
@@ -102,7 +103,7 @@ def smooth_to_bins(
     kernel: SmoothingFunc,
     x_centers: Sequence[FloatLike],
     y_centers: Sequence[FloatLike],
-) -> Sequence[Sequence[int]]:
+) -> Sequence[Sequence[float]]:
     """Bin points into a 2-D histogram given bin edges
 
     Parameters
@@ -115,7 +116,7 @@ def smooth_to_bins(
     x_ctr_f = [float(x) for x in x_centers]
     y_ctr_f = [float(y) for y in y_centers]
 
-    out = [ [0] * len(x_centers) for _ in range(len(y_centers)) ]
+    out = [ [0.0] * len(x_centers) for _ in range(len(y_centers)) ]
 
     # Make the assumption that the bin centers are evenly spaced, so we can
     # calculate bin position from index and vice versa
@@ -136,7 +137,7 @@ def smooth_to_bins(
             end_y_i = ctr_y_i + kernel_height_di + 1
             for y_i, bin_y in enumerate(y_ctr_f[start_y_i : end_y_i], start_y_i):
                 contrib = kernel(((x_f - bin_x), (y_f - bin_y)))
-                out[y_i][x_i] += contrib
+                out[y_i][x_i] += float(contrib)
     return out
 
 def smooth2d(
@@ -151,7 +152,7 @@ def smooth2d(
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
     **axis_args
-) -> tuple[Sequence[Sequence[int]], Axis, Axis]:
+) -> tuple[Sequence[Sequence[float]], Axis, Axis]:
     """Smooth (x,y) points out into a 2-D Density plot
 
     Parameters
@@ -177,10 +178,10 @@ def smooth2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    padding = tuple(map(make_decimal, func_width_half_height(kernel)))
+    padding = func_width_half_height(kernel)
 
-    x_centers, y_centers = process_bin_args(points, bins, ranges, align, False, padding)
-    # XXX need to add padding to process_bin_args
+    expanded_bins = expand_bins_arg(bins)
+    x_centers, y_centers = process_bin_args(points, expanded_bins, ranges, align, False, padding)
     # XXX Should refactor it, make function that does one axis, called twice
 
     # if isinstance(bins[0], int):

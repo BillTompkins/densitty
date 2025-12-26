@@ -166,12 +166,34 @@ def bin_with_size(
     return (bin_edges(points, x_edges, y_edges, drop_outside=drop_outside), x_axis, y_axis)
 
 
-def process_bin_args(
-    points: Sequence[tuple[FloatLike, FloatLike]],
+def expand_bins_arg(
     bins: (
         int
         | tuple[int, int]
         | Sequence[FloatLike]
+        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+    )
+) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+    """Deal with 'bins' argument that is meant to apply to both axes"""
+    if isinstance(bins, int):
+        # we were given a single # of bins
+        return (bins, bins)
+
+    if len(bins) > 2:
+        # we were given a single list of bin edges: replicate it
+        return (bins, bins)
+
+    # Flagged by type-checker: 'bins' could conceivably be a Sequence of len 1 or 2
+    assert isinstance(bins, tuple), "Invalid 'bins' argument"
+
+    # We got a tuple of int/int or of Sequence/Sequence: return it
+    return bins
+
+
+def process_bin_args(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    bins: (
+        tuple[int, int]
         | tuple[Sequence[FloatLike], Sequence[FloatLike]]
     ),
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
@@ -184,20 +206,13 @@ def process_bin_args(
     make_edges: True => output edges of bins if given a number, False => output centers
     """
 
-    if isinstance(bins, int):
-        # we were given a single # of bins
-        bins = (bins, bins)
-
-    if isinstance(bins, Sequence) and len(bins) > 2:
-        # we were given a single list of bin edges: replicate it
-        bins = (bins, bins)
-
     if isinstance(bins[0], int):
         # we were given the number of bins for X. Calculate the edges/centers:
         if ranges is None or ranges[0] is None:
             x_range_unpadded = calc_value_range(tuple(x for x, _ in points))
-            x_range = ValueRange(x_range_unpadded.min - padding[0],
-                                 x_range_unpadded.max + padding[0])
+            padding_x = make_decimal(padding[0])
+            x_range = ValueRange(x_range_unpadded.min - padding_x,
+                                 x_range_unpadded.max + padding_x)
         else:
             x_range = ranges[0]
 
@@ -214,8 +229,9 @@ def process_bin_args(
         # we were given the number of bins. Calculate the edges/centers:
         if ranges is None or ranges[1] is None:
             y_range_unpadded = calc_value_range(tuple(y for _, y in points))
-            y_range = ValueRange(y_range_unpadded.min - padding[1],
-                                 y_range_unpadded.max + padding[1])
+            padding_y = make_decimal(padding[1])
+            y_range = ValueRange(y_range_unpadded.min - padding_y,
+                                 y_range_unpadded.max + padding_y)
         else:
             y_range = ranges[1]
 
@@ -267,7 +283,8 @@ def histogram2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    x_edges, y_edges = process_bin_args(points, bins, ranges, align, True, (0,0))
+    expanded_bins = expand_bins_arg(bins)
+    x_edges, y_edges = process_bin_args(points, expanded_bins, ranges, align, True, (0,0))
 
     x_axis = Axis((x_edges[0], x_edges[-1]), values_are_edges=True, **axis_args)
     y_axis = Axis((y_edges[0], y_edges[-1]), values_are_edges=True, **axis_args)
