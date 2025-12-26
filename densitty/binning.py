@@ -166,6 +166,71 @@ def bin_with_size(
     return (bin_edges(points, x_edges, y_edges, drop_outside=drop_outside), x_axis, y_axis)
 
 
+def process_bin_args(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    bins: (
+        int
+        | tuple[int, int]
+        | Sequence[FloatLike]
+        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+    ),
+    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
+    align: bool,
+    make_edges: bool,
+    padding: tuple[FloatLike, FloatLike],
+) -> tuple[Sequence[FloatLike], Sequence[FloatLike]]:  # XXX is it actually returning Decimal sequences?
+    """Utility function to process the various types that a 'bins' argument might be
+    bins, ranges, align: as for histogram2d
+    make_edges: True => output edges of bins if given a number, False => output centers
+    """
+
+    if isinstance(bins, int):
+        # we were given a single # of bins
+        bins = (bins, bins)
+
+    if isinstance(bins, Sequence) and len(bins) > 2:
+        # we were given a single list of bin edges: replicate it
+        bins = (bins, bins)
+
+    if isinstance(bins[0], int):
+        # we were given the number of bins for X. Calculate the edges/centers:
+        if ranges is None or ranges[0] is None:
+            x_range_unpadded = calc_value_range(tuple(x for x, _ in points))
+            x_range = ValueRange(x_range_unpadded.min - padding[0],
+                                 x_range_unpadded.max + padding[0])
+        else:
+            x_range = ranges[0]
+
+        num = bins[0] + int(make_edges)
+        x_edges = pick_edges(num, x_range, align)
+    else:
+        # we were given the bin edges already
+        if ranges is not None and ranges[0] is not None:
+            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
+        assert isinstance(bins[0], Sequence)
+        x_edges = bins[0]
+
+    if isinstance(bins[1], int):
+        # we were given the number of bins. Calculate the edges/centers:
+        if ranges is None or ranges[1] is None:
+            y_range_unpadded = calc_value_range(tuple(y for _, y in points))
+            y_range = ValueRange(y_range_unpadded.min - padding[1],
+                                 y_range_unpadded.max + padding[1])
+        else:
+            y_range = ranges[1]
+
+        num = bins[1] + int(make_edges)
+        y_edges = pick_edges(num, y_range, align)
+    else:
+        # we were given the bin edges already
+        if ranges is not None and ranges[1] is not None:
+            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
+        assert isinstance(bins[1], Sequence)
+        y_edges = bins[1]
+
+    return x_edges, y_edges
+
+
 def histogram2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
     bins: (
@@ -202,43 +267,7 @@ def histogram2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    if isinstance(bins, int):
-        # we were given a single # of bins
-        bins = (bins, bins)
-
-    if isinstance(bins, Sequence) and len(bins) > 2:
-        # we were given a single list of bin edges: replicate it
-        bins = (bins, bins)
-
-    if isinstance(bins[0], int):
-        # we were given the number of bins for X. Calculate the edges:
-        if ranges is None or ranges[0] is None:
-            x_range = calc_value_range(tuple(x for x, _ in points))
-        else:
-            x_range = ranges[0]
-
-        x_edges = pick_edges(bins[0], x_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[0] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[0], Sequence)
-        x_edges = bins[0]
-
-    if isinstance(bins[1], int):
-        # we were given the number of bins. Calculate the edges:
-        if ranges is None or ranges[1] is None:
-            y_range = calc_value_range(tuple(y for _, y in points))
-        else:
-            y_range = ranges[1]
-
-        y_edges = pick_edges(bins[1], y_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[1] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[1], Sequence)
-        y_edges = bins[1]
+    x_edges, y_edges = process_bin_args(points, bins, ranges, align, True, (0,0))
 
     x_axis = Axis((x_edges[0], x_edges[-1]), values_are_edges=True, **axis_args)
     y_axis = Axis((y_edges[0], y_edges[-1]), values_are_edges=True, **axis_args)

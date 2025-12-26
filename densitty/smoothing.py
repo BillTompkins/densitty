@@ -4,7 +4,7 @@ import math
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
-from .binning import calc_value_range, pick_edges
+from .binning import calc_value_range, pick_edges, process_bin_args
 from .util import FloatLike, ValueRange
 from .util import make_decimal
 
@@ -179,48 +179,44 @@ def smooth2d(
 
     padding = tuple(map(make_decimal, func_width_half_height(kernel)))
 
-    if isinstance(bins, int):
-        # we were given a single # of bins
-        bins = (bins, bins)
+    x_centers, y_centers = process_bin_args(points, bins, ranges, align, False, padding)
+    # XXX need to add padding to process_bin_args
+    # XXX Should refactor it, make function that does one axis, called twice
 
-    if isinstance(bins, Sequence) and len(bins) > 2:
-        # we were given a single list of bin edges: replicate it
-        bins = (bins, bins)
+    # if isinstance(bins[0], int):
+    #     # we were given the number of bins for X. Calculate the edges:
+    #     if ranges is None or ranges[0] is None:
+    #         x_range = calc_value_range(tuple(x for x, _ in points))
+    #         x_range = ValueRange(x_range[0] - padding[0], x_range[1] + padding[0])
+    #     else:
+    #         x_range = ranges[0]
 
-    if isinstance(bins[0], int):
-        # we were given the number of bins for X. Calculate the edges:
-        if ranges is None or ranges[0] is None:
-            x_range = calc_value_range(tuple(x for x, _ in points))
-            x_range = ValueRange(x_range[0] - padding[0], x_range[1] + padding[0])
-        else:
-            x_range = ranges[0]
+    #      # re-use the binning 'pick_edges' logic to pick centers,
+    #     # but there is one fewer "center" than edge so subtract 1
+    #     # TODO: refactor/rename?
+    #     x_centers = pick_edges(bins[0] - 1, x_range, align)
+    # else:
+    #     # we were given the bin edges already
+    #     if ranges is not None and ranges[0] is not None:
+    #         raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
+    #     assert isinstance(bins[0], Sequence)
+    #     x_centers = bins[0]
 
-        # re-use the binning 'pick_edges' logic to pick centers,
-        # but there is one fewer "center" than edge so subtract 1
-        # TODO: refactor/rename?
-        x_centers = pick_edges(bins[0] - 1, x_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[0] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[0], Sequence)
-        x_centers = bins[0]
-
-    if isinstance(bins[1], int):
-        # we were given the number of bins. Calculate the edges:
-        if ranges is None or ranges[1] is None:
-            y_range = calc_value_range(tuple(y for _, y in points))
-            y_range = ValueRange(y_range[0] - padding[1], y_range[1] + padding[1])
-        else:
-            y_range = ranges[1]
-        # TODO: Same as X
-        y_centers = pick_edges(bins[1] - 1, y_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[1] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[1], Sequence)
-        y_centers = bins[1]
+    # if isinstance(bins[1], int):
+    #     # we were given the number of bins. Calculate the edges:
+    #     if ranges is None or ranges[1] is None:
+    #         y_range = calc_value_range(tuple(y for _, y in points))
+    #         y_range = ValueRange(y_range[0] - padding[1], y_range[1] + padding[1])
+    #     else:
+    #         y_range = ranges[1]
+    #     # TODO: Same as X
+    #     y_centers = pick_edges(bins[1] - 1, y_range, align)
+    # else:
+    #     # we were given the bin edges already
+    #     if ranges is not None and ranges[1] is not None:
+    #         raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
+    #     assert isinstance(bins[1], Sequence)
+    #     y_centers = bins[1]
 
     x_axis = Axis((x_centers[0], x_centers[-1]), values_are_edges=False, **axis_args)
     y_axis = Axis((y_centers[0], y_centers[-1]), values_are_edges=False, **axis_args)
