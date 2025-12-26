@@ -58,8 +58,8 @@ def calc_value_range(values: Sequence[FloatLike]) -> ValueRange:
     return ValueRange(data_value_range.min, range_top)
 
 
-def pick_edges(
-    num_bins: int,
+def segment_interval(
+    num_outputs: int,
     value_range: ValueRange,
     align=True,
 ) -> Sequence[FloatLike]:
@@ -68,22 +68,23 @@ def pick_edges(
     Parameters
     ----------
     values: Sequence of data values
-    num_bins: int
-              Number of bins to partition into
+    num_outputs: int
+              Number of output values
     value_range: ValueRange
-              Min/Max of the values to be binned
+              Min/Max of the output values
     align: bool
               Adjust the range somewhat to put bin size & edges on "round" values
     """
     value_range = make_value_range(value_range)  # coerce into Decimal if not already
-    assert isinstance(value_range.min, Decimal)
+    assert isinstance(value_range.min, Decimal)  # make the type-checker happy
     assert isinstance(value_range.max, Decimal)
+    num_steps = num_outputs - 1
 
-    min_step_size = (value_range.max - value_range.min) / num_bins
+    min_step_size = (value_range.max - value_range.min) / num_steps
     if align:
         step_size = round_up_ish(min_step_size)
         first_edge = math.floor(Decimal(value_range.min) / step_size) * step_size
-        if first_edge + num_bins * step_size < value_range.max:
+        if first_edge + num_steps * step_size < value_range.max:
             # Uh oh: even though we rounded up the bin size, shifting the first edge
             # down to a multiple has shifted the last edge down too far. Bump up the step size:
             step_size = round_up_ish(step_size * Decimal(1.015625))
@@ -92,7 +93,7 @@ def pick_edges(
         # Test to see if any lower multiples of it will still include the whole ranges,
         # and be "nicer" i.e. if data is all in 1.1..9.5 range with 10 bins, we now have bins
         # covering 1-11, but could have 0-10
-        last_edge = first_edge + step_size * num_bins
+        last_edge = first_edge + step_size * num_steps
         num_trials = int((last_edge - value_range.max) // step_size + 1)
         offsets = (step_size * i for i in range(num_trials))
         edge_pairs = ((first_edge - offset, last_edge - offset) for offset in offsets)
@@ -102,8 +103,7 @@ def pick_edges(
         step_size = min_step_size
         first_edge = value_range.min
 
-    num_edges = num_bins + 1
-    return tuple(first_edge + step_size * i for i in range(num_edges))
+    return tuple(first_edge + step_size * i for i in range(num_outputs))
 
 
 def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
@@ -202,7 +202,7 @@ def process_bin_args(
             x_range = ranges[0]
 
         num = bins[0] + int(make_edges)
-        x_edges = pick_edges(num, x_range, align)
+        x_edges = segment_interval(num, x_range, align)
     else:
         # we were given the bin edges already
         if ranges is not None and ranges[0] is not None:
@@ -220,7 +220,7 @@ def process_bin_args(
             y_range = ranges[1]
 
         num = bins[1] + int(make_edges)
-        y_edges = pick_edges(num, y_range, align)
+        y_edges = segment_interval(num, y_range, align)
     else:
         # we were given the bin edges already
         if ranges is not None and ranges[1] is not None:

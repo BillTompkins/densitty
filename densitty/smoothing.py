@@ -4,7 +4,7 @@ import math
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
-from .binning import calc_value_range, pick_edges, process_bin_args
+from .binning import process_bin_args
 from .util import FloatLike, ValueRange
 from .util import make_decimal
 
