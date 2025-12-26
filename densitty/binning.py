@@ -172,7 +172,7 @@ def expand_bins_arg(
         | tuple[int, int]
         | Sequence[FloatLike]
         | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    )
+    ),
 ) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
     """Deal with 'bins' argument that is meant to apply to both axes"""
     if isinstance(bins, int):
@@ -184,65 +184,71 @@ def expand_bins_arg(
         return (bins, bins)
 
     # Flagged by type-checker: 'bins' could conceivably be a Sequence of len 1 or 2
-    assert isinstance(bins, tuple), "Invalid 'bins' argument"
+    if not isinstance(bins, tuple):
+        raise ValueError("Invalid 'bins' argument")
 
     # We got a tuple of int/int or of Sequence/Sequence: return it
     return bins
 
 
+def bins_to_edges(
+    bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
+) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+    if isinstance(bins[0], int):
+        return (bins[0] + 1, bins[1] + 1)
+    return bins
+
+
+def find_range(points: Sequence[FloatLike], padding: FloatLike) -> ValueRange:
+    """Calculate a range if none is provided, then produce segment values"""
+
+    range_unpadded = calc_value_range(points)
+    range_padding = make_decimal(padding)
+    return ValueRange(range_unpadded.min - range_padding, range_unpadded.max + range_padding)
+
+
+def segment_one_dim_if_needed(
+    points: Sequence[FloatLike],
+    bins: int | Sequence[FloatLike],
+    out_range: Optional[ValueRange],
+    align: bool,
+    padding: FloatLike,
+) -> Sequence[FloatLike]:
+    if isinstance(bins, int):
+        # we were given the number of bins for X or Y. Calculate the edges/centers:
+        if out_range is None:
+            out_range = find_range(points, padding)
+
+        return segment_interval(bins, out_range, align)
+
+    # we were given the bin edges/centers already
+    if out_range is not None:
+        raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
+    return bins
+
+
 def process_bin_args(
     points: Sequence[tuple[FloatLike, FloatLike]],
-    bins: (
-        tuple[int, int]
-        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    ),
+    bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
     align: bool,
-    make_edges: bool,
     padding: tuple[FloatLike, FloatLike],
-) -> tuple[Sequence[FloatLike], Sequence[FloatLike]]:  # XXX is it actually returning Decimal sequences?
+) -> tuple[
+    Sequence[FloatLike], Sequence[FloatLike]
+]:  # XXX is it actually returning Decimal sequences?
     """Utility function to process the various types that a 'bins' argument might be
     bins, ranges, align: as for histogram2d
-    make_edges: True => output edges of bins if given a number, False => output centers
     """
 
-    if isinstance(bins[0], int):
-        # we were given the number of bins for X. Calculate the edges/centers:
-        if ranges is None or ranges[0] is None:
-            x_range_unpadded = calc_value_range(tuple(x for x, _ in points))
-            padding_x = make_decimal(padding[0])
-            x_range = ValueRange(x_range_unpadded.min - padding_x,
-                                 x_range_unpadded.max + padding_x)
-        else:
-            x_range = ranges[0]
+    if ranges is None:
+        ranges = (None, None)
 
-        num = bins[0] + int(make_edges)
-        x_edges = segment_interval(num, x_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[0] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[0], Sequence)
-        x_edges = bins[0]
-
-    if isinstance(bins[1], int):
-        # we were given the number of bins. Calculate the edges/centers:
-        if ranges is None or ranges[1] is None:
-            y_range_unpadded = calc_value_range(tuple(y for _, y in points))
-            padding_y = make_decimal(padding[1])
-            y_range = ValueRange(y_range_unpadded.min - padding_y,
-                                 y_range_unpadded.max + padding_y)
-        else:
-            y_range = ranges[1]
-
-        num = bins[1] + int(make_edges)
-        y_edges = segment_interval(num, y_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[1] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[1], Sequence)
-        y_edges = bins[1]
+    x_edges = segment_one_dim_if_needed(
+        tuple(x for x, _ in points), bins[0], ranges[0], align, padding[0]
+    )
+    y_edges = segment_one_dim_if_needed(
+        tuple(y for _, y in points), bins[1], ranges[1], align, padding[1]
+    )
 
     return x_edges, y_edges
 
@@ -283,8 +289,9 @@ def histogram2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    expanded_bins = expand_bins_arg(bins)
-    x_edges, y_edges = process_bin_args(points, expanded_bins, ranges, align, True, (0,0))
+    expanded_bins = bins_to_edges(expand_bins_arg(bins))
+
+    x_edges, y_edges = process_bin_args(points, expanded_bins, ranges, align, (0, 0))
 
     x_axis = Axis((x_edges[0], x_edges[-1]), values_are_edges=True, **axis_args)
     y_axis = Axis((y_edges[0], y_edges[-1]), values_are_edges=True, **axis_args)

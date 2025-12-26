@@ -11,33 +11,45 @@ from .util import make_decimal
 # XXX How to tell type system that this callable/function may have attributes attached?
 SmoothingFunc = Callable[[tuple[FloatLike, FloatLike]], FloatLike]
 
-def gaussian(delta: tuple[FloatLike, FloatLike],
-             inv_cov: tuple[tuple[FloatLike, FloatLike], tuple[FloatLike, FloatLike]]):
+
+def gaussian(
+    delta: tuple[FloatLike, FloatLike],
+    inv_cov: tuple[tuple[FloatLike, FloatLike], tuple[FloatLike, FloatLike]],
+):
     """Unnormalized Gaussian
     delta: vector of ((x - x0), (y - y0))
     inv_cov: inverse covariance matrix (aka precision)
     """
-    exponent = ((delta[0] * delta[0] * inv_cov[0][0]) +
-                2 * (delta[0] * delta[1] * inv_cov[0][1]) +
-                (delta[1] * delta[1] * inv_cov[1][1]))
+    exponent = (
+        (delta[0] * delta[0] * inv_cov[0][0])
+        + 2 * (delta[0] * delta[1] * inv_cov[0][1])
+        + (delta[1] * delta[1] * inv_cov[1][1])
+    )
     return math.exp(-exponent / 2)
+
 
 def gaussian_with_sigma(inv_sigma) -> SmoothingFunc:
     """Produce a kernel function for a Gaussian with specified (inverse) width"""
+
     def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
         return gaussian(delta, inv_sigma)
+
     return out
+
 
 # Kernel Density Estimation: Scott's rule: BW = n**(-1/6).  Silverman factor is same for d=2.
 # inv_sigma = covariance * BW**2
 # invert 2x2: [[d, -b], [-c, a]] / (a*d - b*c)
 
+
 def triangle(width_x, width_y) -> SmoothingFunc:
     """Produce a kernel function for a 2-D triangle with specified width/height"""
+
     def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
         x_factor = max(0.0, width_x / 2 - abs(delta[0]))
         y_factor = max(0.0, width_y / 2 - abs(delta[1]))
         return x_factor * y_factor
+
     out.widths = (width_x / 2, width_y / 2)
     out.half_height_widths = (width_x / 4, width_y / 4)
     return out
@@ -51,7 +63,7 @@ def func_span(f: Callable):
     lower, upper = 0.0, 1.0
     # Interval might not contain target, so double 'upper' until it does
     for _ in range(100):
-        if  f(upper) <= target:
+        if f(upper) <= target:
             break
         lower = upper
         upper *= 2
@@ -76,17 +88,22 @@ def func_span(f: Callable):
 
     return (lower + upper) / 2
 
+
 def func_width_half_height(f: SmoothingFunc):
     """Provide the (half) width of the function at half height (HWHM)"""
 
     if "half_height_widths" in dir(f):
         return f.half_height_widths
+
     # No user-provided width information. Calculate it:
     def f_x(x):
         return f((x, 0))
+
     def f_y(y):
         return f((0, y))
+
     return func_span(f_x), func_span(f_y)
+
 
 def func_width(f: SmoothingFunc):
     """Provide the (half) width of the function that includes nearly all of the area"""
@@ -116,7 +133,7 @@ def smooth_to_bins(
     x_ctr_f = [float(x) for x in x_centers]
     y_ctr_f = [float(y) for y in y_centers]
 
-    out = [ [0.0] * len(x_centers) for _ in range(len(y_centers)) ]
+    out = [[0.0] * len(x_centers) for _ in range(len(y_centers))]
 
     # Make the assumption that the bin centers are evenly spaced, so we can
     # calculate bin position from index and vice versa
@@ -131,14 +148,15 @@ def smooth_to_bins(
         ctr_x_i = round((x_f - x_ctr_f[0]) / x_delta)
         start_x_i = ctr_x_i - kernel_width_di
         end_x_i = ctr_x_i + kernel_width_di + 1
-        for x_i, bin_x in enumerate(x_ctr_f[start_x_i : end_x_i], start_x_i):
+        for x_i, bin_x in enumerate(x_ctr_f[start_x_i:end_x_i], start_x_i):
             ctr_y_i = round((y_f - y_ctr_f[0]) / y_delta)
             start_y_i = ctr_y_i - kernel_height_di
             end_y_i = ctr_y_i + kernel_height_di + 1
-            for y_i, bin_y in enumerate(y_ctr_f[start_y_i : end_y_i], start_y_i):
+            for y_i, bin_y in enumerate(y_ctr_f[start_y_i:end_y_i], start_y_i):
                 contrib = kernel(((x_f - bin_x), (y_f - bin_y)))
                 out[y_i][x_i] += float(contrib)
     return out
+
 
 def smooth2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
@@ -151,7 +169,7 @@ def smooth2d(
     ) = 10,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
-    **axis_args
+    **axis_args,
 ) -> tuple[Sequence[Sequence[float]], Axis, Axis]:
     """Smooth (x,y) points out into a 2-D Density plot
 
@@ -181,43 +199,7 @@ def smooth2d(
     padding = func_width_half_height(kernel)
 
     expanded_bins = expand_bins_arg(bins)
-    x_centers, y_centers = process_bin_args(points, expanded_bins, ranges, align, False, padding)
-    # XXX Should refactor it, make function that does one axis, called twice
-
-    # if isinstance(bins[0], int):
-    #     # we were given the number of bins for X. Calculate the edges:
-    #     if ranges is None or ranges[0] is None:
-    #         x_range = calc_value_range(tuple(x for x, _ in points))
-    #         x_range = ValueRange(x_range[0] - padding[0], x_range[1] + padding[0])
-    #     else:
-    #         x_range = ranges[0]
-
-    #      # re-use the binning 'pick_edges' logic to pick centers,
-    #     # but there is one fewer "center" than edge so subtract 1
-    #     # TODO: refactor/rename?
-    #     x_centers = pick_edges(bins[0] - 1, x_range, align)
-    # else:
-    #     # we were given the bin edges already
-    #     if ranges is not None and ranges[0] is not None:
-    #         raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-    #     assert isinstance(bins[0], Sequence)
-    #     x_centers = bins[0]
-
-    # if isinstance(bins[1], int):
-    #     # we were given the number of bins. Calculate the edges:
-    #     if ranges is None or ranges[1] is None:
-    #         y_range = calc_value_range(tuple(y for _, y in points))
-    #         y_range = ValueRange(y_range[0] - padding[1], y_range[1] + padding[1])
-    #     else:
-    #         y_range = ranges[1]
-    #     # TODO: Same as X
-    #     y_centers = pick_edges(bins[1] - 1, y_range, align)
-    # else:
-    #     # we were given the bin edges already
-    #     if ranges is not None and ranges[1] is not None:
-    #         raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-    #     assert isinstance(bins[1], Sequence)
-    #     y_centers = bins[1]
+    x_centers, y_centers = process_bin_args(points, expanded_bins, ranges, align, padding)
 
     x_axis = Axis((x_centers[0], x_centers[-1]), values_are_edges=False, **axis_args)
     y_axis = Axis((y_centers[0], y_centers[-1]), values_are_edges=False, **axis_args)
