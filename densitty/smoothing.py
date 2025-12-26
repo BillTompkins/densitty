@@ -140,20 +140,17 @@ def smooth_to_bins(
     x_delta = x_ctr_f[1] - x_ctr_f[0]
     y_delta = y_ctr_f[1] - y_ctr_f[0]
 
-    kernel_width, kernel_height = func_width(kernel)
-    kernel_width_di = round(kernel_width // x_delta) + 1
-    kernel_height_di = round(kernel_height // y_delta) + 1
-    for x, y in points:
-        x_f, y_f = float(x), float(y)
-        ctr_x_i = round((x_f - x_ctr_f[0]) / x_delta)
-        start_x_i = ctr_x_i - kernel_width_di
-        end_x_i = ctr_x_i + kernel_width_di + 1
-        for x_i, bin_x in enumerate(x_ctr_f[start_x_i:end_x_i], start_x_i):
-            ctr_y_i = round((y_f - y_ctr_f[0]) / y_delta)
-            start_y_i = ctr_y_i - kernel_height_di
-            end_y_i = ctr_y_i + kernel_height_di + 1
-            for y_i, bin_y in enumerate(y_ctr_f[start_y_i:end_y_i], start_y_i):
-                contrib = kernel(((x_f - bin_x), (y_f - bin_y)))
+    kernel_width = func_width(kernel)
+    # Find width of the kernel in terms of X/Y indexes of the centers:
+    kernel_width_di = (round(kernel_width[0] // x_delta) + 1, round(kernel_width[1] // y_delta) + 1)
+    for point in points:
+        p = (float(point[0]), float(point[1]))
+        min_xi = round((p[0] - x_ctr_f[0]) / x_delta) - kernel_width_di[0]
+        min_yi = round((p[1] - y_ctr_f[0]) / y_delta) - kernel_width_di[1]
+
+        for x_i, bin_x in enumerate(x_ctr_f[min_xi:min_xi + 2 * kernel_width_di[0]], min_xi):
+            for y_i, bin_y in enumerate(y_ctr_f[min_yi: min_yi + 2 * kernel_width_di[1]], min_yi):
+                contrib = kernel(((p[0] - bin_x), (p[1] - bin_y)))
                 out[y_i][x_i] += float(contrib)
     return out
 
