@@ -240,9 +240,7 @@ def process_bin_args(
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
     align: bool,
     padding: tuple[FloatLike, FloatLike],
-) -> tuple[
-    Sequence[FloatLike], Sequence[FloatLike]
-]:
+) -> tuple[Sequence[FloatLike], Sequence[FloatLike]]:
     """Utility function to process the various types that a 'bins' argument might be
     bins, ranges, align: as for histogram2d
     """

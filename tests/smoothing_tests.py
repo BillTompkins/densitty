@@ -39,6 +39,5 @@ if __name__ == "__main__":
     )
     plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
 
-
     # detect.histplot2d(points, (args.cols, args.rows), ranges=((x_ctrs[0], x_ctrs[-1]), (y_ctrs[0], y_ctrs[-1]))).show()
     detect.histplot2d(points, (args.cols, args.rows)).show()

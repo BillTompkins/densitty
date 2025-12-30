@@ -11,9 +11,11 @@ from .util import FloatLike, ValueRange
 
 BareSmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
 
+
 @dataclasses.dataclass
 class SmoothingFuncWithWidth:
     """Smoothing function plus precalculated widths"""
+
     func: BareSmoothingFunc
     widths: tuple[FloatLike, FloatLike]  # X & Y widths that include ~99% of weight
     half_height_widths: tuple[FloatLike, FloatLike]  # X & Y widths at half-height
@@ -21,7 +23,9 @@ class SmoothingFuncWithWidth:
     def __call__(self, delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
         return self.func(delta_x, delta_y)
 
+
 SmoothingFunc = BareSmoothingFunc | SmoothingFuncWithWidth
+
 
 def gaussian(
     delta: tuple[FloatLike, FloatLike],
@@ -152,14 +156,17 @@ def smooth_to_bins(
 
     kernel_width = func_width(kernel)
     # Find width of the kernel in terms of X/Y indexes of the centers:
-    kernel_width_di = (round(kernel_width[0] // x_delta) + 1, round(kernel_width[1] // y_delta) + 1)
+    kernel_width_di = (
+        round(kernel_width[0] // x_delta) + 1,
+        round(kernel_width[1] // y_delta) + 1,
+    )
     for point in points:
         p = (float(point[0]), float(point[1]))
         min_xi = round((p[0] - x_ctr_f[0]) / x_delta) - kernel_width_di[0]
         min_yi = round((p[1] - y_ctr_f[0]) / y_delta) - kernel_width_di[1]
 
-        for x_i, bin_x in enumerate(x_ctr_f[min_xi:min_xi + 2 * kernel_width_di[0]], min_xi):
-            for y_i, bin_y in enumerate(y_ctr_f[min_yi: min_yi + 2 * kernel_width_di[1]], min_yi):
+        for x_i, bin_x in enumerate(x_ctr_f[min_xi : min_xi + 2 * kernel_width_di[0]], min_xi):
+            for y_i, bin_y in enumerate(y_ctr_f[min_yi : min_yi + 2 * kernel_width_di[1]], min_yi):
                 contrib = kernel((p[0] - bin_x), (p[1] - bin_y))
                 out[y_i][x_i] += float(contrib)
     return out
