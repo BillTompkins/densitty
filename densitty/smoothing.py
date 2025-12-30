@@ -210,9 +210,15 @@ def smooth2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    padding = func_width_half_height(kernel)
-
     expanded_bins = expand_bins_arg(bins)
+
+    if isinstance(bins[0], Sequence):
+        # we were given the bin centers, so just use them
+        padding = (0, 0)
+    else:
+        # we're computing the bin centers, so include some padding based on kernel width
+        padding = func_width_half_height(kernel)
+
     x_centers, y_centers = process_bin_args(points, expanded_bins, ranges, align, padding)
 
     x_axis = Axis((x_centers[0], x_centers[-1]), values_are_edges=False, **axis_args)
