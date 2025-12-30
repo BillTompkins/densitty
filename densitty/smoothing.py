@@ -163,8 +163,8 @@ def smooth_to_bins(
     )
     for point in points:
         p = (float(point[0]), float(point[1]))
-        min_xi = round((p[0] - x_ctr_f[0]) / x_delta) - kernel_width_di[0]
-        min_yi = round((p[1] - y_ctr_f[0]) / y_delta) - kernel_width_di[1]
+        min_xi = max(round((p[0] - x_ctr_f[0]) / x_delta) - kernel_width_di[0], 0)
+        min_yi = max(round((p[1] - y_ctr_f[0]) / y_delta) - kernel_width_di[1], 0)
 
         for x_i, bin_x in enumerate(x_ctr_f[min_xi : min_xi + 2 * kernel_width_di[0]], min_xi):
             for y_i, bin_y in enumerate(y_ctr_f[min_yi : min_yi + 2 * kernel_width_di[1]], min_yi):
