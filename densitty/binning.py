@@ -194,6 +194,9 @@ def expand_bins_arg(
 def bins_to_edges(
     bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
 ) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+    """Number of edges = number of bins + 1. 'bins' argument may be # of bins,
+    or a collection of edges. Only add 1 in the former case.
+    """
     if isinstance(bins[0], int):
         return (bins[0] + 1, bins[1] + 1)
     return bins
@@ -214,6 +217,10 @@ def segment_one_dim_if_needed(
     align: bool,
     padding: FloatLike,
 ) -> Sequence[FloatLike]:
+    """Helper function for processing 'bins' argument:
+    If 'bins' argument is a number of bins, find equally spaced values in the range.
+    If not given a range, compute it first.
+    """
     if isinstance(bins, int):
         # we were given the number of bins for X or Y. Calculate the edges/centers:
         if out_range is None:
@@ -235,7 +242,7 @@ def process_bin_args(
     padding: tuple[FloatLike, FloatLike],
 ) -> tuple[
     Sequence[FloatLike], Sequence[FloatLike]
-]:  # XXX is it actually returning Decimal sequences?
+]:
     """Utility function to process the various types that a 'bins' argument might be
     bins, ranges, align: as for histogram2d
     """

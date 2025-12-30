@@ -1,16 +1,26 @@
 """Creation of 2-D density maps for (x,y) data"""
 
+import dataclasses
 import math
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional, Protocol, Sequence
 
 from .axis import Axis
 from .binning import expand_bins_arg, process_bin_args
 from .util import FloatLike, ValueRange
-from .util import make_decimal
 
 # XXX How to tell type system that this callable/function may have attributes attached?
-SmoothingFunc = Callable[[tuple[FloatLike, FloatLike]], FloatLike]
+BareSmoothingFunc = Callable[[tuple[FloatLike, FloatLike]], FloatLike]
 
+@dataclasses.dataclass
+class SmoothingFuncWithWidth:
+    func: BareSmoothingFunc
+    widths: tuple[FloatLike, FloatLike]
+    half_height_widths: tuple[FloatLike, FloatLike]
+
+    def __call__(self, delta: tuple[FloatLike, FloatLike]) -> FloatLike:
+        return self.func(delta)
+
+SmoothingFunc = BareSmoothingFunc | SmoothingFuncWithWidth
 
 def gaussian(
     delta: tuple[FloatLike, FloatLike],
@@ -50,9 +60,7 @@ def triangle(width_x, width_y) -> SmoothingFunc:
         y_factor = max(0.0, width_y / 2 - abs(delta[1]))
         return x_factor * y_factor
 
-    out.widths = (width_x / 2, width_y / 2)
-    out.half_height_widths = (width_x / 4, width_y / 4)
-    return out
+    return SmoothingFuncWithWidth(out, (width_x / 2, width_y / 2), (width_x / 4, width_y / 4))
 
 
 def func_span(f: Callable):
@@ -92,7 +100,7 @@ def func_span(f: Callable):
 def func_width_half_height(f: SmoothingFunc):
     """Provide the (half) width of the function at half height (HWHM)"""
 
-    if "half_height_widths" in dir(f):
+    if isinstance(f, SmoothingFuncWithWidth):
         return f.half_height_widths
 
     # No user-provided width information. Calculate it:
@@ -108,9 +116,10 @@ def func_width_half_height(f: SmoothingFunc):
 def func_width(f: SmoothingFunc):
     """Provide the (half) width of the function that includes nearly all of the area"""
 
-    if "widths" in dir(f):
-        return f.widths
+    if isinstance(f, SmoothingFuncWithWidth):
+        return f.half_height_widths
     # No user-provided width information. Return 3* the width at half-height
+    # TODO: probably should extend 'func_span' to take a variable target height
     half_height_width = func_width_half_height(f)
     return (3 * half_height_width[0], 3 * half_height_width[1])
 
