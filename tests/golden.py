@@ -5,13 +5,25 @@ import sys
 import types
 
 
-def check(content, check_name=None):
-    if isinstance(content, types.GeneratorType):
-        content_str = repr(tuple(content))
-    else:
-        content_str = repr(content)
+def sanitize(a):
+    if isinstance(a, str):
+        return repr(a)
+    if isinstance(a, types.GeneratorType):
+        return sanitize(tuple(a))
+    if isinstance(a, tuple):
+        if len(a) == 1:
+            return "(" + sanitize(a[0]) + ",)"
+        else:
+            return "(" + ", ".join(sanitize(x) for x in a) + ")"
+    if isinstance(a, list):
+        return "[" + ", ".join(sanitize(x) for x in a) + "]"
+    if isinstance(a, float):
+        return f"{a:.12}"
+    return repr(a)
 
-    content_bytes = content_str.encode("utf-8")
+
+def check(content, check_name=None):
+    content_bytes = sanitize(content).encode("utf-8")
 
     if check_name is None:
         check_name = inspect.stack()[1].function
