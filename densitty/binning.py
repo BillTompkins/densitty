@@ -58,8 +58,8 @@ def calc_value_range(values: Sequence[FloatLike]) -> ValueRange:
     return ValueRange(data_value_range.min, range_top)
 
 
-def pick_edges(
-    num_bins: int,
+def segment_interval(
+    num_outputs: int,
     value_range: ValueRange,
     align=True,
 ) -> Sequence[FloatLike]:
@@ -68,22 +68,23 @@ def pick_edges(
     Parameters
     ----------
     values: Sequence of data values
-    num_bins: int
-              Number of bins to partition into
+    num_outputs: int
+              Number of output values
     value_range: ValueRange
-              Min/Max of the values to be binned
+              Min/Max of the output values
     align: bool
               Adjust the range somewhat to put bin size & edges on "round" values
     """
     value_range = make_value_range(value_range)  # coerce into Decimal if not already
-    assert isinstance(value_range.min, Decimal)
+    assert isinstance(value_range.min, Decimal)  # make the type-checker happy
     assert isinstance(value_range.max, Decimal)
+    num_steps = num_outputs - 1
 
-    min_step_size = (value_range.max - value_range.min) / num_bins
+    min_step_size = (value_range.max - value_range.min) / num_steps
     if align:
         step_size = round_up_ish(min_step_size)
         first_edge = math.floor(Decimal(value_range.min) / step_size) * step_size
-        if first_edge + num_bins * step_size < value_range.max:
+        if first_edge + num_steps * step_size < value_range.max:
             # Uh oh: even though we rounded up the bin size, shifting the first edge
             # down to a multiple has shifted the last edge down too far. Bump up the step size:
             step_size = round_up_ish(step_size * Decimal(1.015625))
@@ -92,7 +93,7 @@ def pick_edges(
         # Test to see if any lower multiples of it will still include the whole ranges,
         # and be "nicer" i.e. if data is all in 1.1..9.5 range with 10 bins, we now have bins
         # covering 1-11, but could have 0-10
-        last_edge = first_edge + step_size * num_bins
+        last_edge = first_edge + step_size * num_steps
         num_trials = int((last_edge - value_range.max) // step_size + 1)
         offsets = (step_size * i for i in range(num_trials))
         edge_pairs = ((first_edge - offset, last_edge - offset) for offset in offsets)
@@ -102,8 +103,7 @@ def pick_edges(
         step_size = min_step_size
         first_edge = value_range.min
 
-    num_edges = num_bins + 1
-    return tuple(first_edge + step_size * i for i in range(num_edges))
+    return tuple(first_edge + step_size * i for i in range(num_outputs))
 
 
 def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
@@ -166,6 +166,98 @@ def bin_with_size(
     return (bin_edges(points, x_edges, y_edges, drop_outside=drop_outside), x_axis, y_axis)
 
 
+def expand_bins_arg(
+    bins: (
+        int
+        | tuple[int, int]
+        | Sequence[FloatLike]
+        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+    ),
+) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+    """Deal with 'bins' argument that is meant to apply to both axes"""
+    if isinstance(bins, int):
+        # we were given a single # of bins
+        return (bins, bins)
+
+    if len(bins) > 2:
+        # we were given a single list of bin edges: replicate it
+        return (bins, bins)
+
+    # Flagged by type-checker: 'bins' could conceivably be a Sequence of len 1 or 2
+    if not isinstance(bins, tuple):
+        raise ValueError("Invalid 'bins' argument")
+
+    # We got a tuple of int/int or of Sequence/Sequence: return it
+    return bins
+
+
+def bins_to_edges(
+    bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
+) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+    """Number of edges = number of bins + 1. 'bins' argument may be # of bins,
+    or a collection of edges. Only add 1 in the former case.
+    """
+    if isinstance(bins[0], int):
+        return (bins[0] + 1, bins[1] + 1)
+    return bins
+
+
+def find_range(points: Sequence[FloatLike], padding: FloatLike) -> ValueRange:
+    """Calculate a range if none is provided, then produce segment values"""
+
+    range_unpadded = calc_value_range(points)
+    range_padding = make_decimal(padding)
+    return ValueRange(range_unpadded.min - range_padding, range_unpadded.max + range_padding)
+
+
+def segment_one_dim_if_needed(
+    points: Sequence[FloatLike],
+    bins: int | Sequence[FloatLike],
+    out_range: Optional[ValueRange],
+    align: bool,
+    padding: FloatLike,
+) -> Sequence[FloatLike]:
+    """Helper function for processing 'bins' argument:
+    If 'bins' argument is a number of bins, find equally spaced values in the range.
+    If not given a range, compute it first.
+    """
+    if isinstance(bins, int):
+        # we were given the number of bins for X or Y. Calculate the edges/centers:
+        if out_range is None:
+            out_range = find_range(points, padding)
+
+        return segment_interval(bins, out_range, align)
+
+    # we were given the bin edges/centers already
+    if out_range is not None:
+        raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
+    return bins
+
+
+def process_bin_args(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
+    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
+    align: bool,
+    padding: tuple[FloatLike, FloatLike],
+) -> tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+    """Utility function to process the various types that a 'bins' argument might be
+    bins, ranges, align: as for histogram2d
+    """
+
+    if ranges is None:
+        ranges = (None, None)
+
+    x_edges = segment_one_dim_if_needed(
+        tuple(x for x, _ in points), bins[0], ranges[0], align, padding[0]
+    )
+    y_edges = segment_one_dim_if_needed(
+        tuple(y for _, y in points), bins[1], ranges[1], align, padding[1]
+    )
+
+    return x_edges, y_edges
+
+
 def histogram2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
     bins: (
@@ -202,43 +294,9 @@ def histogram2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    if isinstance(bins, int):
-        # we were given a single # of bins
-        bins = (bins, bins)
+    expanded_bins = bins_to_edges(expand_bins_arg(bins))
 
-    if isinstance(bins, Sequence) and len(bins) > 2:
-        # we were given a single list of bin edges: replicate it
-        bins = (bins, bins)
-
-    if isinstance(bins[0], int):
-        # we were given the number of bins for X. Calculate the edges:
-        if ranges is None or ranges[0] is None:
-            x_range = calc_value_range(tuple(x for x, _ in points))
-        else:
-            x_range = ranges[0]
-
-        x_edges = pick_edges(bins[0], x_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[0] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[0], Sequence)
-        x_edges = bins[0]
-
-    if isinstance(bins[1], int):
-        # we were given the number of bins. Calculate the edges:
-        if ranges is None or ranges[1] is None:
-            y_range = calc_value_range(tuple(y for _, y in points))
-        else:
-            y_range = ranges[1]
-
-        y_edges = pick_edges(bins[1], y_range, align)
-    else:
-        # we were given the bin edges already
-        if ranges is not None and ranges[1] is not None:
-            raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-        assert isinstance(bins[1], Sequence)
-        y_edges = bins[1]
+    x_edges, y_edges = process_bin_args(points, expanded_bins, ranges, align, (0, 0))
 
     x_axis = Axis((x_edges[0], x_edges[-1]), values_are_edges=True, **axis_args)
     y_axis = Axis((y_edges[0], y_edges[-1]), values_are_edges=True, **axis_args)

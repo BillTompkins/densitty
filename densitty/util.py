@@ -7,7 +7,7 @@ import typing
 
 from bisect import bisect_left
 from decimal import Decimal, BasicContext
-from typing import Any, NamedTuple, Sequence
+from typing import Any, Callable, NamedTuple, Sequence
 
 
 # FloatLike and Vec are defined in the stubs file util.pyi for type checking
@@ -88,6 +88,24 @@ def make_decimal(x: FloatLike) -> Decimal:
 def make_value_range(v: ValueRange | Sequence[FloatLike]) -> ValueRange:
     """Produce a ValueRange from from something that may be a sequence of FloatLikes"""
     return ValueRange(make_decimal(v[0]), make_decimal(v[1]))
+
+
+def partial_first(f: Callable[[FloatLike, FloatLike], FloatLike]) -> Callable:
+    """Equivalent to functools.partial, but works with Python 3.10"""
+
+    def out(x: FloatLike):
+        return f(x, 0)
+
+    return out
+
+
+def partial_second(f: Callable[[FloatLike, FloatLike], FloatLike]) -> Callable:
+    """Equivalent to functools.partial, but works with Python 3.10"""
+
+    def out(x: FloatLike):
+        return f(0, x)
+
+    return out
 
 
 def sfrexp10(value):
