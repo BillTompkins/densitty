@@ -7,9 +7,9 @@ import types
 
 def check(content, check_name=None):
     if isinstance(content, types.GeneratorType):
-        content_str = str(tuple(content))
+        content_str = repr(tuple(content))
     else:
-        content_str = str(content)
+        content_str = repr(content)
 
     content_bytes = content_str.encode("utf-8")
 

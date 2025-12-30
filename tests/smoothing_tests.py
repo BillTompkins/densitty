@@ -1,9 +1,8 @@
 import argparse
 import pytest
 import random
-import sys
 
-from densitty import axis, detect, plot, smoothing
+from densitty import detect, plot, smoothing
 import golden
 
 
