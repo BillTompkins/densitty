@@ -26,16 +26,19 @@ if __name__ == "__main__":
     random.seed(args.seed)
     points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(args.num)]
 
-    x_ctrs = [(x_i / args.cols - 0.5) * 20 for x_i in range(args.cols)]
-    y_ctrs = [(y_i / args.rows - 0.5) * 20 for y_i in range(args.rows)]
-    # print(f"{points=}")
-    # print(f"{x_ctrs=}")
-    # print(f"{y_ctrs=}")
+    # x_ctrs = [(x_i / args.cols - 0.5) * 20 for x_i in range(args.cols)]
+    # y_ctrs = [(y_i / args.rows - 0.5) * 20 for y_i in range(args.rows)]
 
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         points, smoothing.triangle(2, 2), bins=(args.rows, args.cols)
     )
     plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+
+    smoothed, x_axis, y_axis = smoothing.smooth2d(
+        points, smoothing.gaussian_with_sigma([[2, 0], [0, 2]]), bins=(args.rows, args.cols)
+    )
+    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+
 
     # detect.histplot2d(points, (args.cols, args.rows), ranges=((x_ctrs[0], x_ctrs[-1]), (y_ctrs[0], y_ctrs[-1]))).show()
     detect.histplot2d(points, (args.cols, args.rows)).show()

@@ -2,23 +2,24 @@
 
 import dataclasses
 import math
+from functools import partial, Placeholder
 from typing import Callable, Optional, Protocol, Sequence
 
 from .axis import Axis
 from .binning import expand_bins_arg, process_bin_args
 from .util import FloatLike, ValueRange
 
-# XXX How to tell type system that this callable/function may have attributes attached?
-BareSmoothingFunc = Callable[[tuple[FloatLike, FloatLike]], FloatLike]
+BareSmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
 
 @dataclasses.dataclass
 class SmoothingFuncWithWidth:
+    """Smoothing function plus precalculated widths"""
     func: BareSmoothingFunc
-    widths: tuple[FloatLike, FloatLike]
-    half_height_widths: tuple[FloatLike, FloatLike]
+    widths: tuple[FloatLike, FloatLike]  # X & Y widths that include ~99% of weight
+    half_height_widths: tuple[FloatLike, FloatLike]  # X & Y widths at half-height
 
-    def __call__(self, delta: tuple[FloatLike, FloatLike]) -> FloatLike:
-        return self.func(delta)
+    def __call__(self, delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
+        return self.func(delta_x, delta_y)
 
 SmoothingFunc = BareSmoothingFunc | SmoothingFuncWithWidth
 
@@ -41,8 +42,8 @@ def gaussian(
 def gaussian_with_sigma(inv_sigma) -> SmoothingFunc:
     """Produce a kernel function for a Gaussian with specified (inverse) width"""
 
-    def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
-        return gaussian(delta, inv_sigma)
+    def out(delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
+        return gaussian((delta_x, delta_y), inv_sigma)
 
     return out
 
@@ -55,18 +56,18 @@ def gaussian_with_sigma(inv_sigma) -> SmoothingFunc:
 def triangle(width_x, width_y) -> SmoothingFunc:
     """Produce a kernel function for a 2-D triangle with specified width/height"""
 
-    def out(delta: tuple[FloatLike, FloatLike]) -> FloatLike:
-        x_factor = max(0.0, width_x / 2 - abs(delta[0]))
-        y_factor = max(0.0, width_y / 2 - abs(delta[1]))
+    def out(delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
+        x_factor = max(0.0, width_x / 2 - abs(delta_x))
+        y_factor = max(0.0, width_y / 2 - abs(delta_y))
         return x_factor * y_factor
 
     return SmoothingFuncWithWidth(out, (width_x / 2, width_y / 2), (width_x / 4, width_y / 4))
 
 
-def func_span(f: Callable):
-    """Calculate the half-width at half-height of a function"""
+def func_span(f: Callable, fractional_height: FloatLike):
+    """Calculate the half-width of function at specified height"""
     maximum = f(0)
-    target = maximum / 2
+    target = maximum * fractional_height
     # variables 'upper' and 'lower' s.t. f(lower) > maximum/3 and f(upper) < maximum/2
     lower, upper = 0.0, 1.0
     # Interval might not contain target, so double 'upper' until it does
@@ -104,13 +105,9 @@ def func_width_half_height(f: SmoothingFunc):
         return f.half_height_widths
 
     # No user-provided width information. Calculate it:
-    def f_x(x):
-        return f((x, 0))
-
-    def f_y(y):
-        return f((0, y))
-
-    return func_span(f_x), func_span(f_y)
+    x_width = func_span(partial(f, Placeholder, 0), 0.5)
+    y_width = func_span(partial(f, 0), 0.5)
+    return x_width, y_width
 
 
 def func_width(f: SmoothingFunc):
@@ -118,10 +115,14 @@ def func_width(f: SmoothingFunc):
 
     if isinstance(f, SmoothingFuncWithWidth):
         return f.half_height_widths
-    # No user-provided width information. Return 3* the width at half-height
-    # TODO: probably should extend 'func_span' to take a variable target height
-    half_height_width = func_width_half_height(f)
-    return (3 * half_height_width[0], 3 * half_height_width[1])
+
+    # No user-provided width information. Calculate it.
+    # Note: here we're just finding where the function gets down to
+    # 1/1000 of max, which neglects that the area scales with the radius from the function center
+    # so for very slowly decaying functions (1/r, say) we may be excluding a lot of total weight
+    x_width = func_span(partial(f, Placeholder, 0), 0.001)
+    y_width = func_span(partial(f, 0), 0.001)
+    return x_width, y_width
 
 
 def smooth_to_bins(
@@ -159,7 +160,7 @@ def smooth_to_bins(
 
         for x_i, bin_x in enumerate(x_ctr_f[min_xi:min_xi + 2 * kernel_width_di[0]], min_xi):
             for y_i, bin_y in enumerate(y_ctr_f[min_yi: min_yi + 2 * kernel_width_di[1]], min_yi):
-                contrib = kernel(((p[0] - bin_x), (p[1] - bin_y)))
+                contrib = kernel((p[0] - bin_x), (p[1] - bin_y))
                 out[y_i][x_i] += float(contrib)
     return out
 
