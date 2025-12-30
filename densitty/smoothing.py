@@ -2,12 +2,11 @@
 
 import dataclasses
 import math
-from functools import partial, Placeholder
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
 from .binning import expand_bins_arg, process_bin_args
-from .util import FloatLike, ValueRange
+from .util import FloatLike, ValueRange, partial_first, partial_second
 
 BareSmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
 
@@ -109,8 +108,8 @@ def func_width_half_height(f: SmoothingFunc):
         return f.half_height_widths
 
     # No user-provided width information. Calculate it:
-    x_width = func_span(partial(f, Placeholder, 0), 0.5)
-    y_width = func_span(partial(f, 0), 0.5)
+    x_width = func_span(partial_first(f), 0.5)
+    y_width = func_span(partial_second(f), 0.5)
     return x_width, y_width
 
 
@@ -124,8 +123,8 @@ def func_width(f: SmoothingFunc):
     # Note: here we're just finding where the function gets down to
     # 1/1000 of max, which neglects that the area scales with the radius from the function center
     # so for very slowly decaying functions (1/r, say) we may be excluding a lot of total weight
-    x_width = func_span(partial(f, Placeholder, 0), 0.001)
-    y_width = func_span(partial(f, 0), 0.001)
+    x_width = func_span(partial_first(f), 0.001)
+    y_width = func_span(partial_second(f), 0.001)
     return x_width, y_width
 
 

@@ -18,20 +18,26 @@ def data():
 def test_smooth_data_1(data):
     """provide centers"""
     ctrs = tuple(x - 10 for x in range(21))
-    smoothed, x_axis, y_axis = smoothing.smooth2d(data, smoothing.triangle(2, 2), bins=(ctrs, ctrs))
+    smoothed, x_axis, y_axis = smoothing.smooth2d(
+        data, smoothing.triangle(2, 2), bins=(ctrs, ctrs)
+    )
     plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(smoothed)
 
+
 def test_smooth_data_2(data):
     """provide number of centers and ranges"""
-    smoothed, x_axis, y_axis = smoothing.smooth2d(data, smoothing.triangle(2, 2), bins=(80,80), ranges=((1, 10), (1, 10)))
+    smoothed, x_axis, y_axis = smoothing.smooth2d(
+        data, smoothing.triangle(2, 2), bins=(80, 80), ranges=((1, 10), (1, 10))
+    )
     plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(smoothed)
+
 
 def test_smooth_data_3(data):
     """provide just the number of centers"""
     kernel = smoothing.gaussian_with_sigma([[2, 0], [0, 2]])
-    smoothed, x_axis, y_axis = smoothing.smooth2d(data, kernel, bins=(80,80))
+    smoothed, x_axis, y_axis = smoothing.smooth2d(data, kernel, bins=(80, 80))
     plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(smoothed)
 
