@@ -211,7 +211,7 @@ def smooth2d(
 
     expanded_bins = expand_bins_arg(bins)
 
-    if isinstance(bins[0], Sequence):
+    if isinstance(expanded_bins[0], Sequence):
         # we were given the bin centers, so just use them
         padding = (0, 0)
     else:
