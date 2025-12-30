@@ -3,7 +3,7 @@
 import dataclasses
 import math
 from functools import partial, Placeholder
-from typing import Callable, Optional, Protocol, Sequence
+from typing import Callable, Optional, Sequence
 
 from .axis import Axis
 from .binning import expand_bins_arg, process_bin_args
@@ -144,6 +144,7 @@ def smooth_to_bins(
     x_centers: Sequence of values: Centers of output columns
     y_centers: Sequence of values: Centers of output rows
     """
+    # pylint: disable=too-many-locals
     x_ctr_f = [float(x) for x in x_centers]
     y_ctr_f = [float(y) for y in y_centers]
 
@@ -167,8 +168,7 @@ def smooth_to_bins(
 
         for x_i, bin_x in enumerate(x_ctr_f[min_xi : min_xi + 2 * kernel_width_di[0]], min_xi):
             for y_i, bin_y in enumerate(y_ctr_f[min_yi : min_yi + 2 * kernel_width_di[1]], min_yi):
-                contrib = kernel((p[0] - bin_x), (p[1] - bin_y))
-                out[y_i][x_i] += float(contrib)
+                out[y_i][x_i] += float(kernel((p[0] - bin_x), (p[1] - bin_y)))
     return out
 
 
