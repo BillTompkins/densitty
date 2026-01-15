@@ -3,6 +3,7 @@
 import math
 from bisect import bisect_right
 from decimal import Decimal
+from fractions import Fraction
 from typing import Optional, Sequence
 
 from .axis import Axis
@@ -83,27 +84,34 @@ def segment_interval(
     min_step_size = (value_range.max - value_range.min) / num_steps
     if align:
         step_size = round_up_ish(min_step_size)
-        first_edge = math.floor(Decimal(value_range.min) / step_size) * step_size
+        first_edge = math.floor(Fraction(value_range.min) / step_size) * step_size
         if first_edge + num_steps * step_size < value_range.max:
             # Uh oh: even though we rounded up the bin size, shifting the first edge
             # down to a multiple has shifted the last edge down too far. Bump up the step size:
-            step_size = round_up_ish(step_size * Decimal(1.015625))
-            first_edge = math.floor(Decimal(value_range.min) / step_size) * step_size
+            step_size = round_up_ish(step_size * Fraction(65, 64))
+            first_edge = math.floor(Fraction(value_range.min) / step_size) * step_size
         # we now have a round step size, and a first edge that the highest possible multiple of it
         # Test to see if any lower multiples of it will still include the whole ranges,
         # and be "nicer" i.e. if data is all in 1.1..9.5 range with 10 bins, we now have bins
         # covering 1-11, but could have 0-10
         last_edge = first_edge + step_size * num_steps
-        num_trials = int((last_edge - value_range.max) // step_size + 1)
-        offsets = (step_size * i for i in range(num_trials))
-        edge_pairs = ((first_edge - offset, last_edge - offset) for offset in offsets)
-        first_edge = most_round(edge_pairs)[0]
-
+        edge_pairs = []
+        max_step_slop = int((last_edge - Fraction(value_range.max)) // step_size)
+        for step_shift in range(-max_step_slop, 1):
+            for end_step_shift in range(-max_step_slop, step_shift + 1):
+                edge_pairs += [
+                    (first_edge + step_shift * step_size, last_edge + end_step_shift * step_size)
+                ]
+        first_edge, last_edge = most_round(edge_pairs)
     else:
         step_size = min_step_size
         first_edge = value_range.min
+        last_edge = value_range.max
 
-    return tuple(first_edge + step_size * i for i in range(num_outputs))
+    stepped_values = tuple(first_edge + step_size * i for i in range(num_outputs))
+
+    # The values may have overrun the end of the desired output range. Trim if so:
+    return tuple(v for v in stepped_values if v <= last_edge)
 
 
 def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
@@ -225,7 +233,6 @@ def segment_one_dim_if_needed(
         # we were given the number of bins for X or Y. Calculate the edges/centers:
         if out_range is None:
             out_range = find_range(points, padding)
-
         return segment_interval(bins, out_range, align)
 
     # we were given the bin edges/centers already

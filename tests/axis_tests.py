@@ -1,6 +1,7 @@
 from decimal import Decimal
 import itertools
 import pytest
+import sys
 
 from densitty import ansi, ascii_art, axis, lineart, plot, truecolor
 from densitty.util import make_value_range, ValueRange
@@ -134,11 +135,93 @@ def test_axes_labelsgiven(data):
     golden.check(p.as_strings())
 
 
+def test_axes_1():
+    """Small plot with egregiously large values that won't fit"""
+    dataset = gen_norm_data.gen_norm(num_rows=10, num_cols=10, width=0.3, height=0.15, angle=0.5)
+    x_axis = axis.Axis((10000000000, 100000000000))
+    y_axis = axis.Axis((0, 1))
+    p = plot.Plot(
+        dataset,
+        color_map=ansi.GRAYSCALE,
+        y_axis=y_axis,
+        x_axis=x_axis,
+        min_data=-0.2,
+    )
+    p.show()
+    golden.check(p.as_strings())
+
+
+def test_axes_2():
+    """Very small plot"""
+    """Small plot with large values that won't fit well"""
+    dataset = gen_norm_data.gen_norm(num_rows=7, num_cols=7, width=0.3, height=0.15, angle=0.5)
+    x_axis = axis.Axis((10, 1000))
+    y_axis = axis.Axis((0, 1))
+    p = plot.Plot(
+        dataset,
+        color_map=ansi.GRAYSCALE,
+        y_axis=y_axis,
+        x_axis=x_axis,
+    )
+    p.show()
+    golden.check(p.as_strings())
+
+
+def test_axes_3():
+    """Try to excercise edge-case code path"""
+    dataset = gen_norm_data.gen_norm(num_rows=11, num_cols=18, width=0.3, height=0.15, angle=0.5)
+    x_axis = axis.Axis((0, 800))
+    y_axis = axis.Axis((0, 1))
+    p = plot.Plot(
+        dataset,
+        color_map=ansi.GRAYSCALE,
+        y_axis=y_axis,
+        x_axis=x_axis,
+    )
+    p.show()
+    golden.check(p.as_strings())
+
+
+def test_axes_single_pixel():
+    """Single-pixel plot"""
+    dataset = [[0]]
+    x_axis = axis.Axis((-0.2, 1), fractional_tick_pos=True)
+    y_axis = axis.Axis((0, 1))
+    p = plot.Plot(
+        dataset,
+        color_map=ansi.GRAYSCALE,
+        y_axis=y_axis,
+        x_axis=x_axis,
+    )
+    p.show()
+    golden.check(p.as_strings())
+
+
+def test_axes_invalid_pick_step_size():
+    """Test exception path"""
+    with pytest.raises(ValueError):
+        axis.pick_step_size(0)
+
+
+def test_axes_invalid_1(data):
+    """Test zero-length axis range"""
+    x_axis = axis.Axis((0, 0))
+    y_axis = axis.Axis((0, 0))
+    p = plot.Plot(
+        data,
+        color_map=ansi.GRAYSCALE,
+        y_axis=y_axis,
+        x_axis=x_axis,
+    )
+    p.show()
+    golden.check(p.as_strings())
+
+
 if __name__ == "__main__":
     from rich import traceback
 
-    traceback.install(show_locals=True)
-
+    test_axes_3()
+    sys.exit()
     dataset = gen_norm_data.gen_norm(num_rows=50, num_cols=50, width=0.3, height=0.15, angle=0.5)
     for args in combinations:
         test_axes(dataset, *args)

@@ -4,15 +4,10 @@ import dataclasses
 from decimal import Decimal
 import itertools
 import math
-from typing import Optional
+from typing import Optional, Sequence
 
-from . import lineart
-from .util import FloatLike, ValueRange, pick_step_size
-
-MIN_X_TICKS_PER_LABEL = 4
-MIN_Y_TICKS_PER_LABEL = 2
-DEFAULT_X_COLS_PER_TICK = 4
-DEFAULT_Y_ROWS_PER_TICK = 2
+from . import lineart, util
+from .util import FloatLike, ValueRange
 
 
 @dataclasses.dataclass
@@ -29,6 +24,28 @@ x_border = {False: BorderChars(" ", " ", " "), True: BorderChars("╶", "─", "
 
 ###############################################
 # Helper functions used by the Axis class below
+
+
+def pick_step_size(lower_bound) -> Decimal:
+    """Try to pick a step size that gives nice round values for step positions."""
+    if lower_bound <= 0:
+        raise ValueError("pick_step_size called with 0 or negative value")
+
+    _, frac, exp = util.sfrexp10(lower_bound)  # 0.1 <= frac < 1.0
+
+    # round up to an appropriate "round" value that starts with 1/2/5
+    if frac <= Decimal("0.2"):
+        out = Decimal((0, (2,), exp - 1))
+    elif frac <= Decimal("0.5"):
+        out = Decimal((0, (5,), exp - 1))
+    else:
+        out = Decimal((0, (1,), exp))
+
+    if out >= 10:
+        # this will be printed as 1E1 or such. Give it more significant figures so
+        # it is printed as an integer:
+        return out.quantize(1)
+    return out
 
 
 def add_label(line: list[str], label: str, ctr_pos: int):
@@ -50,29 +67,95 @@ def gen_tick_values(value_range, tick_step):
         tick += tick_step
 
 
-def gen_labels(
-    value_range: ValueRange, num_ticks, min_ticks_per_label, fmt, label_end_ticks=False
-):
+def filter_labels(labels: dict, values_to_print: Sequence):
+    """Remove printed value with empty string (just a tick) for any
+    labels that aren't in values_to_print"""
+
+    return {k: v if k in values_to_print else "" for k, v in labels.items()}
+
+
+def gen_full_labels(value_range: ValueRange, num_bins, accomodate_values, tick_space, fmt):
     """Generate positions for labels (plain ticks & ticks with value)"""
-    tick_step, label_step = pick_step_size(value_range, num_ticks, min_ticks_per_label)
+    # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
+    # WFT: clean up needed
+    bin_width = (value_range.max - value_range.min) / num_bins
 
-    ticks = list(gen_tick_values(value_range, tick_step))
-    label_values = list(gen_tick_values(value_range, label_step))
-    if label_end_ticks or len(label_values) <= 2:
-        # ensure that first & last ticks have labels:
-        if label_values[0] != ticks[0]:
-            label_values = ticks[:1] + label_values
-        if label_values[-1] != ticks[-1]:
-            label_values += ticks[-1:]
+    if bin_width <= 0:
+        # we don't have a sensible range for the axis values, so just have empty ticks
+        return {}
 
-    # sanity: if all but one ticks have labels, just label them all
-    if len(label_values) >= len(ticks) - 1:
-        label_values = ticks
+    if accomodate_values:
+        # find a representative printed label width to use for basic calculations
+        test_tick_step = pick_step_size((value_range.max - value_range.min) / 5)
+        test_values_printed = tuple(
+            fmt.format(value) for value in gen_tick_values(value_range, test_tick_step)
+        )
+        widths_in_bins = tuple(len(p) for p in test_values_printed)
+        min_printed_step = (sorted(widths_in_bins)[2] + 1) * bin_width
+        # If the printed labels are small (single-digit), the ticks themselves might be the limiting
+        # factor, especially if they are X-axis fractional ticks like "/\"
+        min_step = max(min_printed_step, bin_width * (2 + tick_space * 2))
+    else:
+        min_step = bin_width * (2 + tick_space)
 
-    ticks_only = {value: "" for value in ticks}
-    labeled_ticks = {value: fmt.format(value) for value in label_values}
+    cur_tick_step = pick_step_size(min_step)
+    while True:
+        labels = {
+            value: fmt.format(value) for value in gen_tick_values(value_range, cur_tick_step)
+        }
+        positions = tuple(labels.keys())
 
-    return ticks_only | labeled_ticks
+        if len(labels) == 0:
+            # No suitable ticks/labels.
+            if accomodate_values:
+                # Printed value labels won't fit, try without them
+                return gen_full_labels(value_range, num_bins, False, tick_space, "")
+            # Nothing fits
+            return {}
+        if len(labels) == 1:
+            return labels
+
+        step_digit = cur_tick_step.as_tuple().digits[0]  # leading digit of tick step: 1, 2, or 5
+
+        # we want to pick different label subsets depending on whether we're advancing by
+        # 1eX, 2eX, or 5eX:
+        label_subsets = []
+        if step_digit in (1, 2):
+            # print on every fifth label, starting at 0..4
+            label_subsets += list(positions[start::5] for start in range(5))
+        elif step_digit in (1, 5):
+            # print on every second label, starting at 0 or 1
+            label_subsets += list(positions[start::2] for start in range(2))
+
+        # Check to see if all generated label subsets only have a single entry
+        if max(len(subset) for subset in label_subsets) == 1:
+            # See if things will fit if we just label the ends
+            if not accomodate_values:
+                # Yes, for Y axis / we don't care about printed widths
+                return labels
+
+            half_len_a = len(labels[positions[0]]) // 2
+            half_len_b = (len(labels[positions[-1]]) + 1) // 2
+            space_available = math.floor(cur_tick_step / bin_width)
+
+            if half_len_a + half_len_b <= space_available:
+                # We can fit values on the first and last ticks
+                return filter_labels(labels, (positions[0], positions[-1]))
+
+            # Not enough space to print two values, so just print the first
+            return filter_labels(labels, positions[0:1])
+
+        for label_subset in util.roundness_ordered(label_subsets):
+            if not accomodate_values:
+                return filter_labels(labels, label_subset)
+            # We're printing at most one value for every 2 ticks, so just make sure
+            # that the printed values will not run over the adjacent ticks' area
+            # Given the initial min_step logic, this will likely always be true
+            allowed_width = cur_tick_step / bin_width * 2 - 2
+            max_printed_width = max(len(labels[k]) for k in label_subset)
+            if max_printed_width <= allowed_width:
+                return filter_labels(labels, label_subset)
+        cur_tick_step = pick_step_size(float(cur_tick_step) * 1.01)
 
 
 def calc_edges(value_range, num_bins, values_are_edges):
@@ -88,7 +171,7 @@ def calc_edges(value_range, num_bins, values_are_edges):
     values_are_edges: bool
                  Indicates that value_range specifies outside edges rather than bin centers
     """
-    if values_are_edges:
+    if values_are_edges or num_bins == 1:
         bin_delta = (value_range.max - value_range.min) / num_bins
         first_bin_min = value_range.min
     else:
@@ -137,10 +220,11 @@ class Axis:
     def _unjustified_y_axis(self, num_rows: int):
         """Returns the Y axis string for each line of the plot"""
         if self.labels is None:
-            labels = gen_labels(
+            labels = gen_full_labels(
                 self.value_range,
-                num_rows // DEFAULT_Y_ROWS_PER_TICK,
-                MIN_Y_TICKS_PER_LABEL,
+                num_rows,
+                False,
+                0,
                 self.label_fmt,
             )
         else:
@@ -215,14 +299,9 @@ class Axis:
         left_margin: int
                      chars to the left of leftmost data col. May have Labels/border-line.
         """
-
         if self.labels is None:
-            labels = gen_labels(
-                self.value_range,
-                num_cols // DEFAULT_X_COLS_PER_TICK,
-                MIN_X_TICKS_PER_LABEL,
-                self.label_fmt,
-            )
+            tick_space = 1 if self.fractional_tick_pos else 0
+            labels = gen_full_labels(self.value_range, num_cols, True, tick_space, self.label_fmt)
         else:
             labels = self.labels
 
