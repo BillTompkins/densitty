@@ -9,7 +9,7 @@ from types import MappingProxyType
 from typing import Any, Callable, Optional, Sequence
 import time
 
-from . import ansi, ascii_art, binning, lineart, truecolor
+from . import ansi, ascii_art, binning, lineart, smoothing, truecolor
 from . import plot as plotmodule
 from .util import FloatLike, ValueRange
 
@@ -462,5 +462,53 @@ def histplot2d(
         p.upscale()
     elif scale:
         p.upscale(max_expansion=(scale, scale))
+
+    return p
+
+
+def densityplot2d(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    kernel: Optional[smoothing.SmoothingFunc] = None,
+    bins: (
+        int
+        | tuple[int, int]
+        | Sequence[FloatLike]
+        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+    ) = 0,
+    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
+    align=True,
+    colors=FADE_IN,
+    border_line=True,
+    fractional_tick_pos=False,
+    **plotargs,
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+):
+    """Wrapper for smoothing.smooth2d / plot.Plot to simplify 2-D density plots"""
+
+    if bins == 0:
+        try:
+            terminal_size: Optional[os.terminal_size] = os.get_terminal_size()
+        except OSError:
+            terminal_size = plotmodule.default_terminal_size
+        if terminal_size is None:
+            raise OSError("No terminal size from os.get_terminal_size()")
+        size_x = terminal_size.columns - 10
+        size_y = terminal_size.rows - 4
+        bins = (size_x, size_y)
+
+    if kernel is None:
+        x_width, y_width = smoothing.pick_kernel_bandwidth(points, bins=(size_x, size_y))
+        kernel = smoothing.gaussian_with_sigmas(x_width, y_width)
+
+    smoothed, x_axis, y_axis = smoothing.smooth2d(
+        points=points,
+        kernel=kernel,
+        bins=bins,
+        ranges=ranges,
+        align=align,
+        border_line=border_line,
+        fractional_tick_pos=fractional_tick_pos,
+    )
+    p = plot(smoothed, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
 
     return p
