@@ -74,16 +74,18 @@ def filter_labels(labels: dict, values_to_print: Sequence):
     return {k: v if k in values_to_print else "" for k, v in labels.items()}
 
 
-def gen_full_labels(value_range: ValueRange, num_bins, accomodate_values, tick_space, fmt):
-    """Generate positions for labels (plain ticks & ticks with value)"""
-    # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches
-    # WFT: clean up needed
-    bin_width = (value_range.max - value_range.min) / num_bins
+def calc_min_step(
+    value_range: ValueRange,
+    bin_width: FloatLike,
+    accomodate_values: bool,
+    tick_space: int,
+    fmt: str,
+):
+    """Calculate minimum step size for tick placement.
 
-    if bin_width <= 0:
-        # we don't have a sensible range for the axis values, so just have empty ticks
-        return {}
-
+    When accomodate_values is True, considers the width of printed labels.
+    Otherwise, only considers tick spacing requirements.
+    """
     if accomodate_values:
         # find a representative printed label width to use for basic calculations
         test_tick_step = pick_step_size((value_range.max - value_range.min) / 5)
@@ -92,13 +94,77 @@ def gen_full_labels(value_range: ValueRange, num_bins, accomodate_values, tick_s
         )
         widths_in_bins = tuple(len(p) for p in test_values_printed)
         min_printed_step = (sorted(widths_in_bins)[2] + 1) * bin_width
-        # If the printed labels are small (single-digit), the ticks themselves might be the limiting
-        # factor, especially if they are X-axis fractional ticks like "/\"
-        min_step = max(min_printed_step, bin_width * (2 + tick_space * 2))
-    else:
-        min_step = bin_width * (2 + tick_space)
+        # If the printed labels are small (single-digit), the ticks themselves might be the
+        # limiting factor, especially if they are X-axis fractional ticks like "/\"
+        return max(min_printed_step, bin_width * (2 + tick_space * 2))
+    return bin_width * (2 + tick_space)
 
+
+def gen_label_subsets(positions: tuple, tick_step: Decimal) -> list[tuple]:
+    """Generate candidate label subsets based on tick step digit.
+
+    For tick steps starting with 1 or 2: generates every-5th subsets (5 variants).
+    For tick steps starting with 5: generates every-2nd subsets (2 variants).
+    """
+    step_digit = tick_step.as_tuple().digits[0]  # leading digit of tick step: 1, 2, or 5
+
+    # we want to pick different label subsets depending on whether we're advancing by
+    # 1eX, 2eX, or 5eX:
+    label_subsets = []
+    if step_digit in (1, 2):
+        # print on every fifth label, starting at 0..4
+        label_subsets += list(positions[start::5] for start in range(5))
+    elif step_digit in (1, 5):
+        # print on every second label, starting at 0 or 1
+        label_subsets += list(positions[start::2] for start in range(2))
+    return label_subsets
+
+
+def label_ends_only(labels, positions, tick_step, bin_width, accomodate_values):
+    """See if printing just the labels for the first and last ticks will fit"""
+
+    if not accomodate_values:
+        # For Y axis / we don't care about printed widths
+        return labels
+
+    half_len_a = len(labels[positions[0]]) // 2
+    half_len_b = (len(labels[positions[-1]]) + 1) // 2
+    space_available = math.floor(tick_step / bin_width)
+
+    if half_len_a + half_len_b <= space_available:
+        # We can fit values on the first and last ticks
+        return filter_labels(labels, (positions[0], positions[-1]))
+
+    # Not enough space to print two values, so just print the first
+    return filter_labels(labels, positions[0:1])
+
+
+def find_fitting_subset(label_subsets, labels, tick_step, bin_width, accomodate_values):
+    """Find roundest label subset that fits within space constraints"""
+    for label_subset in util.roundness_ordered(label_subsets):
+        if not accomodate_values:
+            return filter_labels(labels, label_subset)
+        # We're printing at most one value for every 2 ticks, so just make sure
+        # that the printed values will not run over the adjacent ticks' area
+        # Given the initial min_step logic, this will likely always be true
+        allowed_width = tick_step / bin_width * 2 - 2
+        max_printed_width = max(len(labels[k]) for k in label_subset)
+        if max_printed_width <= allowed_width:
+            return filter_labels(labels, label_subset)
+    return None
+
+
+def gen_full_labels(value_range: ValueRange, num_bins, accomodate_values, tick_space, fmt):
+    """Generate positions for labels (plain ticks & ticks with value)"""
+    bin_width = (value_range.max - value_range.min) / num_bins
+
+    if bin_width <= 0:
+        # we don't have a sensible range for the axis values, so just have empty ticks
+        return {}
+
+    min_step = calc_min_step(value_range, bin_width, accomodate_values, tick_space, fmt)
     cur_tick_step = pick_step_size(min_step)
+
     while True:
         labels = {
             value: fmt.format(value) for value in gen_tick_values(value_range, cur_tick_step)
@@ -115,46 +181,19 @@ def gen_full_labels(value_range: ValueRange, num_bins, accomodate_values, tick_s
         if len(labels) == 1:
             return labels
 
-        step_digit = cur_tick_step.as_tuple().digits[0]  # leading digit of tick step: 1, 2, or 5
-
-        # we want to pick different label subsets depending on whether we're advancing by
-        # 1eX, 2eX, or 5eX:
-        label_subsets = []
-        if step_digit in (1, 2):
-            # print on every fifth label, starting at 0..4
-            label_subsets += list(positions[start::5] for start in range(5))
-        elif step_digit in (1, 5):
-            # print on every second label, starting at 0 or 1
-            label_subsets += list(positions[start::2] for start in range(2))
+        label_subsets = gen_label_subsets(positions, cur_tick_step)
 
         # Check to see if all generated label subsets only have a single entry
         if max(len(subset) for subset in label_subsets) == 1:
-            # See if things will fit if we just label the ends
-            if not accomodate_values:
-                # Yes, for Y axis / we don't care about printed widths
-                return labels
+            # Try to just label the ends:
+            return label_ends_only(labels, positions, cur_tick_step, bin_width, accomodate_values)
 
-            half_len_a = len(labels[positions[0]]) // 2
-            half_len_b = (len(labels[positions[-1]]) + 1) // 2
-            space_available = math.floor(cur_tick_step / bin_width)
+        result = find_fitting_subset(
+            label_subsets, labels, cur_tick_step, bin_width, accomodate_values
+        )
+        if result is not None:
+            return result
 
-            if half_len_a + half_len_b <= space_available:
-                # We can fit values on the first and last ticks
-                return filter_labels(labels, (positions[0], positions[-1]))
-
-            # Not enough space to print two values, so just print the first
-            return filter_labels(labels, positions[0:1])
-
-        for label_subset in util.roundness_ordered(label_subsets):
-            if not accomodate_values:
-                return filter_labels(labels, label_subset)
-            # We're printing at most one value for every 2 ticks, so just make sure
-            # that the printed values will not run over the adjacent ticks' area
-            # Given the initial min_step logic, this will likely always be true
-            allowed_width = cur_tick_step / bin_width * 2 - 2
-            max_printed_width = max(len(labels[k]) for k in label_subset)
-            if max_printed_width <= allowed_width:
-                return filter_labels(labels, label_subset)
         cur_tick_step = pick_step_size(float(cur_tick_step) * 1.01)
 
 
