@@ -305,7 +305,8 @@ def color_support(interactive=True, debug=False) -> ColorSupport:
         return ColorSupport.NONE
 
     env_term = os.environ.get("TERM", "")
-    print(f"$TERM is {env_term}")
+    if debug:
+        print(f"$TERM is {env_term}")
 
     truecolor_terminals = ("truecolor", "xterm-kitty", "xterm-ghostty", "wezterm")
     if env_term in truecolor_terminals:
@@ -363,6 +364,13 @@ def color_support(interactive=True, debug=False) -> ColorSupport:
         return min(ColorSupport.ANSI_24BIT, color_cap)
 
     if curses:
+        # Curses is installed, but it may or may not have been set up. Try and see
+        try:
+            curses.tigetflag("RGB")
+            # If this gets an error, it can be an internal type not derived from Exception
+            # so just catch everything:
+        except:  # pylint: disable=bare-except
+            curses.setupterm()
         if curses.tigetflag("RGB") == 1:
             # ncurses 6.0+ / terminfo added an "RGB" capability to indicate truecolor support
             return min(ColorSupport.ANSI_24BIT, color_cap)
@@ -371,6 +379,8 @@ def color_support(interactive=True, debug=False) -> ColorSupport:
         # this check is down here after we've given up on finding truecolor support:
         if curses.tigetnum("colors") == 256:
             return min(ColorSupport.ANSI_8BIT, color_cap)
+
+        curses_colors = curses.tigetnum("colors")  # for use below
 
     if env_term.endswith("-256color") or env_term.endswith("-256"):
         if debug:
@@ -392,8 +402,9 @@ def color_support(interactive=True, debug=False) -> ColorSupport:
             print("Color detect: using terminal's Device Attributes")
         return da1_color_support(debug)
 
-    if curses and curses.tigetnum("colors") >= 16:
-        return min(ColorSupport.ANSI_4BIT, color_cap)
+    if curses:
+        if curses_colors >= 16:
+            return min(ColorSupport.ANSI_4BIT, color_cap)
 
     return ColorSupport.NONE
 
