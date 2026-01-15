@@ -1,0 +1,1 @@
+Axis(value_range=ValueRange(min=Decimal('-11'), max=Decimal('15')), labels=None, label_fmt='{}', border_line=False, values_are_edges=False, fractional_tick_pos=False)

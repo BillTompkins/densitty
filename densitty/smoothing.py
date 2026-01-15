@@ -5,7 +5,7 @@ import math
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
-from .binning import expand_bins_arg, process_bin_args
+from .binning import expand_bins_arg, histogram2d, process_bin_args
 from .util import FloatLike, ValueRange, partial_first, partial_second
 
 BareSmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
@@ -42,22 +42,69 @@ def gaussian(
     return math.exp(-exponent / 2)
 
 
-def gaussian_with_sigma(inv_sigma) -> SmoothingFunc:
-    """Produce a kernel function for a Gaussian with specified (inverse) width"""
+def gaussian_with_inv_cov(inv_cov) -> SmoothingFunc:
+    """Produce a kernel function for a Gaussian with specified inverse covariance"""
 
     def out(delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
-        return gaussian((delta_x, delta_y), inv_sigma)
+        return gaussian((delta_x, delta_y), inv_cov)
 
     return out
 
 
-# Kernel Density Estimation: Scott's rule: BW = n**(-1/6).  Silverman factor is same for d=2.
-# inv_sigma = covariance * BW**2
-# invert 2x2: [[d, -b], [-c, a]] / (a*d - b*c)
+def gaussian_with_sigmas(sigma_x, sigma_y) -> SmoothingFunc:
+    """Produce a kernel function for a Gaussian with specified X & Y widths"""
+
+    inv_cov = ((sigma_x**-2, 0), (0, sigma_y**-2))
+
+    def out(delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
+        return gaussian((delta_x, delta_y), inv_cov)
+
+    return out
+
+
+def covariance(points: Sequence[tuple[FloatLike, FloatLike]]):
+    """Calculate the covariance matrix of a list of points"""
+    num = len(points)
+    xs = tuple(x for x, _ in points)
+    ys = tuple(y for _, y in points)
+    mean_x = sum(xs) / num
+    mean_y = sum(ys) / num
+    cov_xx = sum((x - mean_x) ** 2 for x in xs) / num
+    cov_yy = sum((y - mean_y) ** 2 for y in ys) / num
+    cov_xy = sum((x - mean_x) * (y - mean_y) for x, y in points) / num
+    return ((cov_xx, cov_xy), (cov_xy, cov_yy))
+
+
+def kde(points: Sequence[tuple[FloatLike, FloatLike]]):
+    """Kernel for Kernel Density Estimation
+    Note that the resulting smoothing function is quite broad, since the
+    covariance estimate converges very slowly.
+
+    This may make sense to use if the distribution of points is itself a
+    Gaussian, but makes much less sense if it has any internal structure,
+    as that will all get smoothed out.
+    """
+    # From Scott's rule / Silverman's factor: Bandwidth is n**(-1/6)
+    # That is to scale the std deviation (characteristic width)
+    # We're using the square of that: (co)variance, so scale by n**(-1/3)
+    # And invert to get something we can pass to the gaussian func
+    cov = covariance(points)
+    scale = len(points) ** (1 / 3)
+    scaled_det = scale * (cov[0][0] * cov[1][1] - cov[1][0] * cov[0][1])
+    inv_scaled_cov = (
+        (cov[1][1] / scaled_det, -cov[0][1] / scaled_det),
+        (-cov[1][0] / scaled_det, cov[0][0] / scaled_det),
+    )
+
+    return gaussian_with_inv_cov(inv_scaled_cov)
 
 
 def triangle(width_x, width_y) -> SmoothingFunc:
-    """Produce a kernel function for a 2-D triangle with specified width/height"""
+    """Produce a kernel function for a 2-D triangle with specified width/height
+    This is much cheaper computationally than the Gaussian, and gives decent results.
+    It has the nice property that if the widths are multiples of the output "bin" size,
+    the total output weight is independent of the exact alignment of the output bins.
+    """
 
     def out(delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
         x_factor = max(0.0, width_x / 2 - abs(delta_x))
@@ -65,6 +112,61 @@ def triangle(width_x, width_y) -> SmoothingFunc:
         return x_factor * y_factor
 
     return SmoothingFuncWithWidth(out, (width_x / 2, width_y / 2), (width_x / 4, width_y / 4))
+
+
+# Possible heuristics for picking a triangular (or other) width based on points:
+# - find nearest neighbor for each point, take mean/median X & Y distance, mult by fixed scale
+#      Will be slow, doesn't take into account eventual screen size (may be overly small)
+# - Histogram points based on output/screen size, then increase the bin sizes / decrease N
+#   Have some heuristic for "reasonable" clumping. Median of N per bin for non-zero bins?
+# - "Adaptive": use different smoothing width depending on the local density of points.
+#   Most simply: base each point's smoothing width on its nearest neighbor distance, or
+#   second nearest, or...
+
+
+def pick_kernel_bandwidth(
+    points: Sequence[tuple[FloatLike, FloatLike]],
+    bins: tuple[int, int],
+    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
+    smoothness: FloatLike = 3,
+    smooth_fraction: FloatLike = 0.5,
+) -> tuple[float, float]:
+    """Determine an 'optimal' width for a kernel based on histogram binning
+
+    Parameters
+    ----------
+    points: Sequence of X,Y points each should be (float, float)
+    bins: tuple(int, int)
+            expected output number of columns/rows in plot
+            so kernel will at least be on the order of one bin
+    ranges: optional tuple of ValueRanges
+            expected output plot range. Determined from data if unset.
+    smoothness: float
+            Number of points in a histogram bin that is deemed "smooth"
+            1: minumum smoothing. 3 gives reasonable results.
+    smooth_fraction: float (fraction 0.0..1.0)
+            fraction of non-zero bins that must have the desired smoothness
+            0.5 => median non-zero bin
+    """
+    if bins[0] <= 0 or bins[1] <= 0:
+        raise ValueError("Number of bins must be nonzero")
+
+    while bins[0] > 0 and bins[1] > 0:
+        binned, x_axis, y_axis = histogram2d(points, bins, ranges, align=False)
+        nonzero_bins = [b for row in binned for b in row if b > 0]
+        test_pos = int(len(nonzero_bins) * (1.0 - smooth_fraction))
+        test_val = sorted(nonzero_bins)[test_pos]
+        if test_val >= smoothness:
+            break
+        bins = (bins[0] - 1, bins[1] - 1)
+    else:
+        # We never managed to get 'smoothness' per bin, so just give up and smooth a lot
+        bins = (1, 1)
+
+    x_width = float(x_axis.value_range.max - x_axis.value_range.min) / bins[0] / 4
+    y_width = float(y_axis.value_range.max - y_axis.value_range.min) / bins[1] / 4
+
+    return (x_width, y_width)
 
 
 def func_span(f: Callable, fractional_height: FloatLike):
@@ -219,7 +321,6 @@ def smooth2d(
         padding = func_width_half_height(kernel)
 
     x_centers, y_centers = process_bin_args(points, expanded_bins, ranges, align, padding)
-
     x_axis = Axis((x_centers[0], x_centers[-1]), values_are_edges=False, **axis_args)
     y_axis = Axis((y_centers[0], y_centers[-1]), values_are_edges=False, **axis_args)
 
