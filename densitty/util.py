@@ -7,6 +7,7 @@ import typing
 
 from bisect import bisect_left
 from decimal import Decimal, BasicContext
+from fractions import Fraction
 from typing import Any, Callable, NamedTuple, Sequence
 
 
@@ -110,32 +111,35 @@ def partial_second(f: Callable[[FloatLike, FloatLike], FloatLike]) -> Callable:
 
 def sfrexp10(value):
     """Returns sign, base-10 fraction (mantissa), and exponent.
-    i.e. (s, f, e) such that value = s * f * 10 ** e with 0 <= f < 1.0
+    i.e. (s, f, e) such that value = s * f * 10 ** e.
+    if f == 0 => value == 0, else 0.1 < f <= 1.0
     """
     if value == 0:
-        return 1, 0, -100
+        return 1, Fraction(0), -100
 
-    sign = -1 if value < 0 else 1
+    if value < 0:
+        sign = -1
+        value = -value
+    else:
+        sign = 1
 
-    v = Decimal(abs(value))
-    exponent = v.adjusted() + 1
-    frac = v.scaleb(-exponent)  # scale frac's exponent to be 0
-
-    return sign, frac, exponent
+    exp = math.ceil(math.log10(float(value)))
+    frac = (Fraction(value) / Fraction(10) ** exp).limit_denominator()
+    return sign, frac, exp
 
 
 round_fractions = (
-    Decimal(1) / Decimal(10),
-    Decimal(1) / Decimal(8),
-    Decimal(1) / Decimal(6),
-    Decimal(1) / Decimal(5),
-    Decimal(1) / Decimal(4),
-    Decimal(1) / Decimal(3),
-    Decimal(2) / Decimal(5),
-    Decimal(1) / Decimal(2),
-    Decimal(2) / Decimal(3),
-    Decimal(4) / Decimal(5),
-    Decimal(1),
+    Fraction(1, 10),
+    Fraction(1, 8),
+    Fraction(1, 6),
+    Fraction(1, 5),
+    Fraction(1, 4),
+    Fraction(1, 3),
+    Fraction(2, 5),
+    Fraction(1, 2),
+    Fraction(2, 3),
+    Fraction(4, 5),
+    Fraction(1, 1),
 )
 
 
@@ -148,65 +152,88 @@ def round_up_ish(value, round_fracs=round_fractions):
     round_vals: the allowable values (mantissa in base 10)
     return: the closest round_vals[i] * 10**N equal to or larger than 'value'
     """
-    sign, frac, exp = sfrexp10(value)
+    sign, frac_float, exp = sfrexp10(value)
 
     # if we're passed in a float that can't be represented in binary (say 0.1 or 0.2), it will be
-    # rounded up to the next representable float. Subtract the smallest possible value (ulp) to
-    # so that when we round up, it can match an exact Decimal("0.1") or such:
-    frac -= Decimal(math.ulp(frac))
+    # rounded up to the next representable float. Adjust to closest sensible fraction:
+    frac = Fraction(frac_float).limit_denominator()
 
     idx = bisect_left(round_fracs, frac)  # find index that this would be inserted before (>= frac)
     round_frac = round_fracs[idx]
 
-    return sign * round_frac.scaleb(exp)
+    return sign * round_frac * 10**exp
 
 
 def roundness(value):
     """Metric for how 'round' a value is. 10 is rounder than 1, is rounder than 1.1."""
 
-    # if value is a sequence, combine the roundness of all elements, prioritizing in order:
     if isinstance(value, Sequence):
-        out, weight = 0, 1
-        for v in value:
-            out += roundness(v) * weight
-            weight *= 0.99
-        return out
+        # return the average roundness of all elements, with a bonus for the size of the range
+        num = len(value)
 
+        if num > 1:
+            roundnesses = (roundness(v) for v in value)
+            mean = sum(roundnesses) / num
+            # give a bonus to sets that cover a longer interval
+            log_value_range = math.log(value[-1] - value[0])
+        else:
+            mean = roundness(value[0])
+            log_value_range = -1000  # as if we're covering a range of 10^-1000
+
+        # we want a small bonus to "roundness" if the range is bigger.
+        # Keep it small enough that 1..2 won't get expanded to 0.5..2, say
+        # log_value_range increases by ~0.3 for every doubling of range
+        # which is ~ the penalty for using 1/2 vs 1
+        return mean + log_value_range
+
+    # Just a single value, not a sequence:
     if value == 0:
         # 0 is the roundest value
         return 1000  # equivalent to roundness of 1e1000
-    _, frac, exp = sfrexp10(value)
 
-    round_frac = round(frac, 5)  # round to specific # of digits so we can interpret as fraction
+    if value < 0:
+        value = -value
+
+    exp = math.ceil(math.log10(float(value)))
+    frac = (Fraction(value) / Fraction(10) ** exp).limit_denominator()
+    # so frac is 1 for a multiple of 10, and <1 for non-multiples of 10
+
+    # penalties based on the denominator of 'frac' when expressed as a ratio:
     penalties = {
-        1.00000: 0.0,  # no penalty for multiples of 10
-        0.50000: 0.5,  # penalty for multiple of 5 vs multiple of 10
-        0.25000: 0.6,  # penalty for multiple of 4 vs multiple of 10
-        0.75000: 0.6,  #
-        Decimal("0.33333"): 0.7,  # penalty for multiple of 3 vs multiple of 10
-        Decimal("0.66667"): 0.7,  #
-        0.12500: 0.8,  # penalty for multiple of 8 vs multiple of 10
-        0.37500: 0.8,
-        0.62500: 0.8,
-        0.87500: 0.8,
+        1: 0,  # value is power of 10 (1eX)
+        2: 0.3,  # value is 5.0eX
+        5: 0.5,  # value is 2/4/6/8.0 eX
+        10: 1,  # x.1, x.3, x.7, x.9 eX
+        4: 1,  # x.25, x.75 eX
+        3: 1.2,  # x.333, x.666  TODO: figure out how these are being printed and limit digits
+        20: 1.2,  # x.05, x.15, x.35...
+        25: 1.8,  # x.04, x.08, ...
+        50: 1.8,  # x.02, x.06, ...
+        100: 2,  # x.01, ...
     }
 
-    if round_frac in penalties:
-        return exp - penalties[round_frac]
+    if frac.denominator in penalties:
+        return exp - penalties[frac.denominator]
 
-    # Ouch: our fractional part is just not nice, so maximally un-round:
-    return -1000  # equivalent to roundness of 1e-1000
+    # In case we have ticks like 1.001, 1.002, 1.003, try to account for number of digits required:
+    max_digits = 10
+    for digits in range(2, max_digits):
+        if 10**digits % frac.denominator == 0:
+            return exp - digits
+
+    return exp - max_digits
+
+
+def roundness_ordered(values):
+    """Returns values in order of decreasing roundness"""
+    d = {roundness(v): v for v in values}
+    for r in reversed(sorted(d)):
+        yield d[r]
 
 
 def most_round(values):
-    """Pick the most round of the input values. Ties go to the earliest."""
-    best_r = -1e100
-    best_v = 0
-    for v in values:
-        r = roundness(v)
-        if r > best_r:
-            best_r, best_v = r, v
-    return best_v
+    """Pick the most round of the input values."""
+    return next(roundness_ordered(values))
 
 
 def pick_step_size(value_range, num_steps_hint, min_steps_per_label=1) -> tuple[Decimal, Decimal]:
