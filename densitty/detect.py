@@ -504,7 +504,7 @@ def densityplot2d(
         if terminal_size is None:
             raise OSError("No terminal size from os.get_terminal_size()")
         size_x = terminal_size.columns - 10
-        size_y = terminal_size.rows - 4
+        size_y = terminal_size.lines - 4
         bins = (size_x, size_y)
 
     if kernel is None:
