@@ -48,14 +48,39 @@ def pick_step_size(lower_bound) -> Decimal:
     return out
 
 
-def add_label(line: list[str], label: str, ctr_pos: int):
+def add_x_label(line: list[str], label: str, ctr_pos: FloatLike):
     """Adds the label string to the output line, centered at specified position
     The output line is a list of single-character strings, to make this kind of thing
     straightforward"""
     width = len(label)
-    start_col = max(ctr_pos - width // 2, 0)
+    start_col = int(max(float(ctr_pos) + 0.49 - width / 2, 0))
     end_col = start_col + width
     line[start_col:end_col] = list(label)
+
+
+def add_x_tick(line: list[str], start_pos: float, left_margin: int, num_cols: int):
+    """Adds a (possibly fractional) tick to the output line, centered at specified position"""
+    base_idx = int(start_pos)
+    fractional_pos = start_pos - base_idx
+    margined_idx = base_idx + left_margin
+    if 0.25 <= fractional_pos <= 0.75:
+        # add a tick in the center of the appropriate bin
+        line[margined_idx] = lineart.merge_chars("│", line[margined_idx])
+        return
+    if fractional_pos < 0.25:
+        left_idx = max(margined_idx - 1, 0)
+    else:
+        left_idx = margined_idx
+
+    if base_idx == 0:
+        line[left_idx] = lineart.merge_chars("│", line[left_idx])
+    else:
+        line[left_idx] = "╱"
+
+    if base_idx >= num_cols - 1:
+        line[left_idx + 1] = lineart.merge_chars("│", line[left_idx + 1])
+    else:
+        line[left_idx + 1] = "╲"
 
 
 def gen_tick_values(value_range, tick_step):
@@ -362,23 +387,15 @@ class Axis:
         for col_idx, (col_min, col_max) in enumerate(bins):
             # use Decimal.next_plus to accomodate rounding error/truncation
             if label_values and col_min <= label_values[0] <= col_max.next_plus():
-                add_label(label_line, labels[label_values[0]], col_idx + left_margin)
-                tick_idx = left_margin + col_idx
-                offset_frac = (label_values[0] - col_min) / (col_max - col_min)
-                if self.fractional_tick_pos and offset_frac < 0.25:
-                    if col_idx == 0:
-                        tick_line[tick_idx - 1] = lineart.merge_chars("│", tick_line[tick_idx - 1])
-                    else:
-                        tick_line[tick_idx - 1] = "╱"
-                    tick_line[tick_idx] = "╲"
-                elif self.fractional_tick_pos and offset_frac > 0.75:
-                    tick_line[tick_idx] = "╱"
-                    if col_idx < num_cols - 1:
-                        tick_line[tick_idx + 1] = "╲"
-                    else:
-                        tick_line[tick_idx + 1] = lineart.merge_chars("│", tick_line[tick_idx + 1])
+                if self.fractional_tick_pos:
+                    offset_frac = (label_values[0] - col_min) / (col_max - col_min)
                 else:
-                    tick_line[tick_idx] = lineart.merge_chars("│", tick_line[tick_idx])
+                    offset_frac = 0.5  # not doing fractional tick positioning == center the tick
+
+                add_x_tick(tick_line, col_idx + offset_frac, left_margin, num_cols)
+                add_x_label(
+                    label_line, labels[label_values[0]], col_idx + left_margin + offset_frac
+                )
 
                 label_values = label_values[1:]  # pop that first label since we added it
 
