@@ -93,7 +93,9 @@ def calc_min_step(
             fmt.format(value) for value in gen_tick_values(value_range, test_tick_step)
         )
         widths_in_bins = tuple(len(p) for p in test_values_printed)
-        min_printed_step = (sorted(widths_in_bins)[2] + 1) * bin_width
+        # get the 3'd lowest width, or highest if there are less than 3 due to tick-step roundup:
+        example_width = sorted(widths_in_bins)[:3][-1]
+        min_printed_step = (example_width + 1) * bin_width
         # If the printed labels are small (single-digit), the ticks themselves might be the
         # limiting factor, especially if they are X-axis fractional ticks like "/\"
         return max(min_printed_step, bin_width * (2 + tick_space * 2))
