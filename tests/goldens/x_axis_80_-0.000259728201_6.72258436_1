@@ -1,0 +1,1 @@
+{Decimal('0.0'): '0.0', Decimal('0.5'): '', Decimal('1.0'): '1.0', Decimal('1.5'): '', Decimal('2.0'): '2.0', Decimal('2.5'): '', Decimal('3.0'): '3.0', Decimal('3.5'): '', Decimal('4.0'): '4.0', Decimal('4.5'): '', Decimal('5.0'): '5.0', Decimal('5.5'): '', Decimal('6.0'): '6.0', Decimal('6.5'): ''}
