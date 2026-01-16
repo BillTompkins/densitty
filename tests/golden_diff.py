@@ -94,16 +94,29 @@ def color_line(line: str, marks: str, color_code: str):
     return "".join(out_list)
 
 
-def visual_diff(golden_lines: Iterable[str], new_lines: Iterable[str]) -> list[str]:
+def visual_diff(
+    golden_lines: Iterable[str], new_lines: Iterable[str], context_lines: int
+) -> list[str]:
     """Build a human-friendly diff for the provided line sequences."""
     output: list[str] = []
+    prev_line = "<FILE START>"
+    show_next_line = False
     for idx, (golden_line, new_line) in enumerate(
         zip_longest(golden_lines, new_lines, fillvalue="")
     ):
         if golden_line == new_line:
+            prev_line = golden_line
+            if show_next_line:
+                output.append(f"   ctx: {golden_line}")
+                show_next_line = False
             continue
         markers = marker_line(golden_line, new_line)
-        output.append(f"line {idx + 1}:")
+        if context_lines:
+            output.append(f"lines {idx}..{idx+2}:")
+            output.append(f"   ctx: {prev_line}")
+            show_next_line = True
+        else:
+            output.append(f"line {idx + 1}:")
         output.append(f"  gold: {color_line(golden_line, markers, YELLOW)}{RESET}")
         output.append(f"   new: {color_line(new_line, markers, RED)}{RESET}")
         if markers.strip():
@@ -111,11 +124,11 @@ def visual_diff(golden_lines: Iterable[str], new_lines: Iterable[str]) -> list[s
     return output
 
 
-def compare_pair(golden_path: Path, new_path: Path) -> str:
+def compare_pair(golden_path: Path, new_path: Path, context_lines=0) -> str:
     """Create a visual diff report for a single file pair."""
     golden_lines = parse_lines(golden_path.read_text())
     new_lines = parse_lines(new_path.read_text())
-    diff_lines = visual_diff(golden_lines, new_lines)
+    diff_lines = visual_diff(golden_lines, new_lines, context_lines)
     if not diff_lines:
         body = ["No differences detected."]
     else:
@@ -140,7 +153,7 @@ def process_new_goldens(golden_dir: Path, new_dir: Path) -> str:
             print(f"\n=== {new_path.name} ===")
             print(compare_pair(golden_path, new_path))
         while True:
-            print("(a)ccept, (d)ecline, (s)kip, (q)uit: ", end="", flush=True)
+            print("(a)ccept, (d)ecline, (s)kip, (c)ontext, (q)uit: ", end="", flush=True)
 
             key = readchar.readchar()
             print(key)
@@ -152,6 +165,14 @@ def process_new_goldens(golden_dir: Path, new_dir: Path) -> str:
                 break
             if key == "s":
                 break
+            if key == "c":
+                if not golden_path.exists():
+                    print(f"\n=== {new_path.name} New Golden ===")
+                    new_lines = parse_lines(new_path.read_text())
+                    print("\n".join(new_lines))
+                else:
+                    print(f"\n=== {new_path.name} ===")
+                    print(compare_pair(golden_path, new_path, True))
             if key == "q":
                 sys.exit(0)
 
