@@ -16,8 +16,8 @@ class SmoothingFuncWithWidth:
     """Smoothing function plus precalculated widths"""
 
     func: BareSmoothingFunc
-    widths: tuple[FloatLike, FloatLike]  # X & Y widths that include ~99% of weight
-    half_height_widths: tuple[FloatLike, FloatLike]  # X & Y widths at half-height
+    # Precalculated widths at certain fractional height (0.5 and 0.001):
+    precalc_widths: dict[FloatLike, tuple[FloatLike, FloatLike]]
 
     def __call__(self, delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
         return self.func(delta_x, delta_y)
@@ -53,13 +53,8 @@ def gaussian_with_inv_cov(inv_cov) -> SmoothingFunc:
 
 def gaussian_with_sigmas(sigma_x, sigma_y) -> SmoothingFunc:
     """Produce a kernel function for a Gaussian with specified X & Y widths"""
-
     inv_cov = ((sigma_x**-2, 0), (0, sigma_y**-2))
-
-    def out(delta_x: FloatLike, delta_y: FloatLike) -> FloatLike:
-        return gaussian((delta_x, delta_y), inv_cov)
-
-    return out
+    return gaussian_with_inv_cov(inv_cov)
 
 
 def covariance(points: Sequence[tuple[FloatLike, FloatLike]]):
@@ -111,17 +106,13 @@ def triangle(width_x, width_y) -> SmoothingFunc:
         y_factor = max(0.0, width_y / 2 - abs(delta_y))
         return x_factor * y_factor
 
-    return SmoothingFuncWithWidth(out, (width_x / 2, width_y / 2), (width_x / 4, width_y / 4))
-
-
-# Possible heuristics for picking a triangular (or other) width based on points:
-# - find nearest neighbor for each point, take mean/median X & Y distance, mult by fixed scale
-#      Will be slow, doesn't take into account eventual screen size (may be overly small)
-# - Histogram points based on output/screen size, then increase the bin sizes / decrease N
-#   Have some heuristic for "reasonable" clumping. Median of N per bin for non-zero bins?
-# - "Adaptive": use different smoothing width depending on the local density of points.
-#   Most simply: base each point's smoothing width on its nearest neighbor distance, or
-#   second nearest, or...
+    return SmoothingFuncWithWidth(
+        out,
+        {
+            0.5: (width_x / 4, width_y / 4),
+            0.001: (width_x / 2, width_y / 2),
+        },
+    )
 
 
 def pick_kernel_bandwidth(
@@ -203,31 +194,30 @@ def func_span(f: Callable, fractional_height: FloatLike):
     return (lower + upper) / 2
 
 
-def func_width_half_height(f: SmoothingFunc):
+def func_width_at_height(f: SmoothingFunc, height_fraction: float) -> tuple[FloatLike, FloatLike]:
+    """Helper to calculate function width at a given fractional height."""
+    if isinstance(f, SmoothingFuncWithWidth) and height_fraction in f.precalc_widths:
+        return f.precalc_widths[height_fraction]
+    x_width = func_span(partial_first(f), height_fraction)
+    y_width = func_span(partial_second(f), height_fraction)
+    if isinstance(f, SmoothingFuncWithWidth):
+        f.precalc_widths[height_fraction] = (x_width, y_width)
+    return x_width, y_width
+
+
+def func_width_half_height(f: SmoothingFunc) -> tuple[FloatLike, FloatLike]:
     """Provide the (half) width of the function at half height (HWHM)"""
-
-    if isinstance(f, SmoothingFuncWithWidth):
-        return f.half_height_widths
-
-    # No user-provided width information. Calculate it:
-    x_width = func_span(partial_first(f), 0.5)
-    y_width = func_span(partial_second(f), 0.5)
-    return x_width, y_width
+    return func_width_at_height(f, 0.5)
 
 
-def func_width(f: SmoothingFunc):
-    """Provide the (half) width of the function that includes nearly all of the area"""
+def func_width(f: SmoothingFunc) -> tuple[FloatLike, FloatLike]:
+    """Provide the (half) width of the function where it becomes negligible
 
-    if isinstance(f, SmoothingFuncWithWidth):
-        return f.half_height_widths
-
-    # No user-provided width information. Calculate it.
-    # Note: here we're just finding where the function gets down to
-    # 1/1000 of max, which neglects that the area scales with the radius from the function center
-    # so for very slowly decaying functions (1/r, say) we may be excluding a lot of total weight
-    x_width = func_span(partial_first(f), 0.001)
-    y_width = func_span(partial_second(f), 0.001)
-    return x_width, y_width
+    Note: here we're just finding where the function gets down to 1/1000 of max,
+    which neglects that the area scales with the radius from the function center,
+    so for very slowly decaying functions (1/r, say) we may be excluding a lot of total weight.
+    """
+    return func_width_at_height(f, 0.001)
 
 
 def smooth_to_bins(
@@ -259,8 +249,8 @@ def smooth_to_bins(
     kernel_width = func_width(kernel)
     # Find width of the kernel in terms of X/Y indexes of the centers:
     kernel_width_di = (
-        round(kernel_width[0] // x_delta) + 1,
-        round(kernel_width[1] // y_delta) + 1,
+        round(kernel_width[0] / x_delta) + 1,
+        round(kernel_width[1] / y_delta) + 1,
     )
     for point in points:
         p = (float(point[0]), float(point[1]))
@@ -315,7 +305,7 @@ def smooth2d(
 
     if isinstance(expanded_bins[0], Sequence):
         # we were given the bin centers, so just use them
-        padding = (0, 0)
+        padding: tuple[FloatLike, FloatLike] = (0, 0)
     else:
         # we're computing the bin centers, so include some padding based on kernel width
         padding = func_width_half_height(kernel)
