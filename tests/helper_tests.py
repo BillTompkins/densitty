@@ -8,7 +8,6 @@ from densitty import axis, binning, detect
 import gen_norm_data
 import golden
 
-
 mock_terminal_size = os.terminal_size((100, 48))
 
 

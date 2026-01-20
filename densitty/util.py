@@ -10,7 +10,6 @@ from decimal import Decimal, BasicContext
 from fractions import Fraction
 from typing import Any, Callable, NamedTuple, Sequence
 
-
 # FloatLike and Vec are defined in the stubs file util.pyi for type checking
 # At runtime, define as Any so older Python versions don't choke:
 if not typing.TYPE_CHECKING:
