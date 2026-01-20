@@ -37,8 +37,11 @@ class Plot:
     x_axis: Optional[Axis] = None
     y_axis: Optional[Axis] = None
     flip_y: bool = True  # put the first row of data at the bottom of the output
+    to_right: Optional[Plot | Sequence[str]] = None
+    right_padding: Optional[str] = None
 
     def data_limits(self):
+        """Return (min,max) of the plot data."""
         min_data = min(min(line) for line in self.data) if self.min_data is None else self.min_data
         max_data = max(max(line) for line in self.data) if self.max_data is None else self.max_data
         return (min_data, max_data)
@@ -119,8 +122,19 @@ class Plot:
             axis_lines[-1] = lineart.merge_lines(x_ticks, axis_lines[-1])
             axis_lines += [x_labels]
 
-        for frame, plot_line in zip_longest(axis_lines, plot_lines, fillvalue=""):
-            yield frame.translate(self.font_mapping) + plot_line
+        if isinstance(self.to_right, Plot):
+            lines_to_right = self.to_right.as_strings()
+        elif self.to_right is not None:
+            lines_to_right = self.to_right
+        else:
+            lines_to_right = []
+
+        padding = self.right_padding if self.right_padding is not None else ""
+
+        for frame, plot_line, glued_on in zip_longest(
+            axis_lines, plot_lines, lines_to_right, fillvalue=""
+        ):
+            yield frame.translate(self.font_mapping) + plot_line + padding + glued_on
 
     def show(self, printer=print):
         """Simple helper function to output/print a plot"""
@@ -211,3 +225,8 @@ class Plot:
         # repeat each of those by the row multiplier
         self.data = repeat_each(x_expanded, row_mult)
         return self
+
+    def glue_on(self, to_right: list[str] | Plot, padding="  "):
+        """Add lines or another plot to the right of this one."""
+        self.right_padding = padding
+        self.to_right = to_right

@@ -256,7 +256,9 @@ class Axis:
     """Options for axis generation."""
 
     value_range: ValueRange  # can also specify as a tuple of (min, max)
-    labels: Optional[dict[FloatLike, str]] = None  # map axis value to label (plus tick) at that value
+    labels: Optional[dict[FloatLike, str]] = (
+        None  # map axis value to label (plus tick) at that value
+    )
     label_fmt: str = "{}"  # format for generated labels
     border_line: bool = False  # embed ticks in a horizontal X-axis or vertical Y-axis line
     values_are_edges: bool = False  # N+1 values, indicating boundaries between pixels, not centers

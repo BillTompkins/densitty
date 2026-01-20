@@ -6,9 +6,11 @@ import types
 
 disabled = False
 
+
 def disable_checks():
     global disabled
     disabled = True
+
 
 def sanitize(a):
     if isinstance(a, str):

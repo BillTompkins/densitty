@@ -1,7 +1,5 @@
 """Colorbar generation for density plots."""
 
-from decimal import Decimal
-
 from .axis import Axis
 from .plot import Plot
 
@@ -47,8 +45,13 @@ def colorbar(
         gradient_data = [[i / (size - 1)] for i in range(size)] if size > 1 else [[0.5]]
     else:
         size = len(source_plot.data[0])  # num cols => width
-        gradient_data = [[i / (size - 1) for i in range(size)],] if size > 1 else [[0.5]]
-
+        gradient_data = (
+            [
+                [i / (size - 1) for i in range(size)],
+            ]
+            if size > 1
+            else [[0.5]]
+        )
 
     if vertical:
         return Plot(
@@ -72,3 +75,10 @@ def colorbar(
         max_data=1,
         flip_y=False,
     )
+
+
+def add_colorbar(source_plot: Plot, label_fmt: str = "{}", padding: str = "  ") -> Plot:
+    """Add a vertical colorbar to an existing Plot."""
+    cb = colorbar(source_plot, label_fmt, vertical=True)
+    source_plot.glue_on(cb, padding)
+    return source_plot

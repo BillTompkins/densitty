@@ -2,7 +2,7 @@
 
 import pytest
 
-from densitty import ansi, colorbar, plot
+from densitty import ansi, axis, colorbar, plot
 
 import gen_norm_data
 import golden
@@ -19,7 +19,6 @@ def test_colorbar_basic(sample_data):
     source = plot.Plot(
         sample_data,
         color_map=ansi.RAINBOW,
-        render_halfheight=True,
         min_data=-50,
         max_data=50,
     )
@@ -33,7 +32,6 @@ def test_colorbar_label_format(sample_data):
     source = plot.Plot(
         sample_data,
         color_map=ansi.GRAYSCALE,
-        render_halfheight=True,
         min_data=0.0,
         max_data=1.0,
     )
@@ -48,7 +46,6 @@ def test_colorbar_narrow():
     source = plot.Plot(
         narrow_data,
         color_map=ansi.GRAYSCALE,
-        render_halfheight=True,
         min_data=0,
         max_data=10,
     )
@@ -63,7 +60,6 @@ def test_colorbar_infer_limits():
     source = plot.Plot(
         data,
         color_map=ansi.GRAYSCALE,
-        render_halfheight=True,
     )
     cb = colorbar.colorbar(source)
     cb.show()
@@ -75,7 +71,6 @@ def test_colorbar_vertical_basic(sample_data):
     source = plot.Plot(
         sample_data,
         color_map=ansi.FADE_IN,
-        render_halfheight=True,
         min_data=0,
         max_data=100,
     )
@@ -89,7 +84,6 @@ def test_colorbar_vertical_label_format(sample_data):
     source = plot.Plot(
         sample_data,
         color_map=ansi.GRAYSCALE,
-        render_halfheight=True,
         min_data=0.0,
         max_data=1.0,
     )
@@ -104,13 +98,30 @@ def test_colorbar_vertical_short():
     source = plot.Plot(
         short_data,
         color_map=ansi.GRAYSCALE,
-        render_halfheight=True,
         min_data=0,
         max_data=10,
     )
     cb = colorbar.colorbar(source, vertical=True)
     cb.show()
     golden.check(cb.as_strings())
+
+
+def test_added_colorbar(sample_data):
+    """Test vertical colorbar added to original plot."""
+    x_axis = axis.Axis((-10, 10), border_line=True)
+    y_axis = axis.Axis((-10, 10), border_line=True)
+    source = plot.Plot(
+        sample_data,
+        min_data=0,
+        max_data=1,
+        color_map=ansi.FADE_IN,
+        x_axis=x_axis,
+        y_axis=y_axis,
+    )
+
+    colorbar.add_colorbar(source)
+    source.show()
+    golden.check(source.as_strings())
 
 
 if __name__ == "__main__":
@@ -130,3 +141,6 @@ if __name__ == "__main__":
     test_colorbar_vertical_label_format(sample)
     print("Vertical short:")
     test_colorbar_vertical_short()
+
+    print("Added bar:")
+    test_added_colorbar(sample)
