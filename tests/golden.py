@@ -4,6 +4,11 @@ from pathlib import Path
 import sys
 import types
 
+disabled = False
+
+def disable_checks():
+    global disabled
+    disabled = True
 
 def sanitize(a):
     if isinstance(a, str):
@@ -23,6 +28,9 @@ def sanitize(a):
 
 
 def check(content, check_name=None):
+    if disabled:
+        return
+
     content_bytes = sanitize(content).encode("utf-8")
 
     if check_name is None:

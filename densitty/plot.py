@@ -38,6 +38,11 @@ class Plot:
     y_axis: Optional[Axis] = None
     flip_y: bool = True  # put the first row of data at the bottom of the output
 
+    def data_limits(self):
+        min_data = min(min(line) for line in self.data) if self.min_data is None else self.min_data
+        max_data = max(max(line) for line in self.data) if self.max_data is None else self.max_data
+        return (min_data, max_data)
+
     def as_ascii(self):
         """Output using direct characters (ASCII-art)."""
         data = self._normalize_data()
@@ -73,8 +78,7 @@ class Plot:
         Also flips data if requested
         """
 
-        min_data = min(min(line) for line in self.data) if self.min_data is None else self.min_data
-        max_data = max(max(line) for line in self.data) if self.max_data is None else self.max_data
+        min_data, max_data = self.data_limits()
         data_scale = max_data - min_data
         if data_scale == 0:
             # all data has the same value (or we were told it does)
