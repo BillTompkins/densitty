@@ -9,7 +9,7 @@ from types import MappingProxyType
 from typing import Any, Callable, Optional, Sequence
 import time
 
-from . import ansi, ascii_art, binning, lineart, smoothing, truecolor
+from . import ansi, ascii_art, binning, colorbar, lineart, smoothing, truecolor
 from . import plot as plotmodule
 from .util import FloatLike, ValueRange
 
@@ -434,10 +434,26 @@ def pick_colormap(maps: dict[ColorSupport, Callable]) -> Callable:
     return maps[support]
 
 
-def plot(data, colors=FADE_IN, **plotargs):
-    """Wrapper for plot.Plot that picks colormap from dict"""
+def plot(data, colors=FADE_IN, colorscale=False, **plotargs):
+    """Wrapper for plot.Plot that picks colormap from dict
+
+    Parameters
+     ----------
+     data : Sequence[Sequence[float]]
+            The data to be plotted.
+     colors : Dict mapping color support to color map
+            The color scale (e.g. GRAYSCALE, FADE_IN)
+     colorscale: bool
+            Display a vertical color scale on the right
+            (for horizontal, just directly create a colorbar
+              and output it after outputting the plot)
+     plotargs: any Plot() keyword arguments
+    """
     colormap = pick_colormap(colors)
-    return plotmodule.Plot(data, colormap, **plotargs)
+    the_plot = plotmodule.Plot(data, colormap, **plotargs)
+    if colorscale:
+        colorbar.add_colorbar(the_plot)
+    return the_plot
 
 
 def histplot2d(

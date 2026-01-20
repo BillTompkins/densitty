@@ -37,7 +37,7 @@ class Plot:
     x_axis: Optional[Axis] = None
     y_axis: Optional[Axis] = None
     flip_y: bool = True  # put the first row of data at the bottom of the output
-    to_right: Optional[Plot | Sequence[str]] = None
+    to_right: Optional["Plot" | Sequence[str]] = None
     right_padding: Optional[str] = None
 
     def data_limits(self):
@@ -226,7 +226,7 @@ class Plot:
         self.data = repeat_each(x_expanded, row_mult)
         return self
 
-    def glue_on(self, to_right: list[str] | Plot, padding="  "):
+    def glue_on(self, to_right, padding="  "):
         """Add lines or another plot to the right of this one."""
         self.right_padding = padding
         self.to_right = to_right
