@@ -34,7 +34,7 @@ Homepage = "https://github.com/BillTompkins/densitty"
 [dependency-groups]
 build = ["build>=1.2.1", "setuptools>=64", "setuptools-scm>=8"]
 dev = [
-    "black>=24",
+    "black>=26",
     "codecov>=2",
     "coverage>=7",
     "invoke>=2",

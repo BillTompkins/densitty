@@ -256,7 +256,9 @@ class Axis:
     """Options for axis generation."""
 
     value_range: ValueRange  # can also specify as a tuple of (min, max)
-    labels: Optional[dict[float, str]] = None  # map axis value to label (plus tick) at that value
+    labels: Optional[dict[FloatLike, str]] = (
+        None  # map axis value to label (plus tick) at that value
+    )
     label_fmt: str = "{}"  # format for generated labels
     border_line: bool = False  # embed ticks in a horizontal X-axis or vertical Y-axis line
     values_are_edges: bool = False  # N+1 values, indicating boundaries between pixels, not centers
@@ -265,7 +267,7 @@ class Axis:
     def __init__(
         self,
         value_range: ValueRange | tuple[FloatLike, FloatLike],
-        labels: Optional[dict[float, str]] = None,
+        labels: Optional[dict[FloatLike, str]] = None,
         label_fmt: str = "{}",
         border_line: bool = False,
         values_are_edges: bool = False,
@@ -304,10 +306,12 @@ class Axis:
             if label_values and row_min <= label_values[0] <= row_max:
                 label_str = labels[label_values[0]]
 
-                offset_frac = (label_values[0] - row_min) / (row_max - row_min)
-                if offset_frac < 0.25 and self.fractional_tick_pos:
+                offset_frac = (float(label_values[0]) - float(row_min)) / float(row_max - row_min)
+                # Try to avoid our cutoffs being exactly where roundoff errors can pop up and
+                # cause inconsistent behavior. So 0.249 rather than 0.25, 0.751 rather than 0.75:
+                if offset_frac < 0.249 and self.fractional_tick_pos:
                     tick_char = "▔"
-                elif offset_frac > 0.75 and self.fractional_tick_pos:
+                elif offset_frac > 0.751 and self.fractional_tick_pos:
                     tick_char = "▁"
                 else:
                     tick_char = "─"

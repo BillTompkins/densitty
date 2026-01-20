@@ -8,7 +8,6 @@ from typing import Optional, Sequence
 
 from .util import nearest
 
-
 RESET = "\033[0m"
 
 
