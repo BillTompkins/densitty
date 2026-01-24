@@ -15,8 +15,11 @@ WIN_ID=$(osascript -e 'tell app "iTerm2" to id of window 1')
 # get an example name without directory and without ".py" suffix:
 EXAMPLE_NAME="$(basename "$1" .py)"
 
+echo
+
 PYTHONPATH=. uv run $1
 
+echo
 echo
 
 mkdir -p examples/uncropped
