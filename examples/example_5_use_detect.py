@@ -1,3 +1,4 @@
+# Bin with a finer bin size, use terminal-capability detection to pick a colormap, add border lines to axes:
 import random
 
 from densitty.binning import bin_with_size

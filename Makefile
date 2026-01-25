@@ -51,6 +51,10 @@ examples:
 screenshots:
 	uv run --with iterm2,pyobjc examples/generate_screenshots.py
 
+.PHONY: gallery
+gallery: screenshots
+	uv run examples/generate_example_markdown.py
+
 .PHONY: build
 build: ## Build wheel file
 	rm -rf ./dist

@@ -32,4 +32,4 @@ screencapture -o -x -l${WIN_ID} examples/uncropped/${EXAMPLE_NAME}.png
 # Trim to remove all excess border, repage to make the image size the same as the content size
 # Crop once more to remove the cursor at the bottom, and trim again.
 # Then add a 5-pixel black border around each edge:
-/opt/homebrew/bin/magick examples/uncropped/${EXAMPLE_NAME}.png -crop -32+60 -crop +0-24 -trim +repage -crop +0-34 -trim -bordercolor black -border 5 examples/png/${EXAMPLE_NAME}.png
+/opt/homebrew/bin/magick examples/uncropped/${EXAMPLE_NAME}.png -crop -32+60 -crop +0-24 -trim +repage -crop +0-34 -trim -bordercolor black -border 5 docs/examples/${EXAMPLE_NAME}.png
