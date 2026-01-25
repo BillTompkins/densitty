@@ -12,7 +12,7 @@ from densitty.detect import histplot2d
 
 histplot2d(points, 40).show()
 ```
-![Plot Output](./examples/example_1_histplot2d_basic.py.md)
+![Plot Output](./examples/example_1_histplot2d_basic.py.png)
 
 ####  Generate a 2-D Histogram by explicit binning & plot creation
 ```python
@@ -24,7 +24,7 @@ binned, _, _= bin_with_size(points, 1)
 # Plot the resulting histogram
 Plot(binned).show()
 ```
-![Plot Output](./examples/example_2_fixed_width_bins.py.md)
+![Plot Output](./examples/example_2_fixed_width_bins.py.png)
 
 ####  Add the axes:
 ```python
@@ -35,7 +35,7 @@ binned, x_axis, y_axis = bin_with_size(points, 1)
 p = Plot(binned, x_axis=x_axis, y_axis=y_axis)
 p.show()
 ```
-![Plot Output](./examples/example_3_add_axes.py.md)
+![Plot Output](./examples/example_3_add_axes.py.png)
 
 ####  Explicit binning boundaries, scaled output with specific colormap
 ```python
@@ -47,7 +47,7 @@ binned, x_axis, y_axis = bin_with_size(points, 1, ranges=((-10,10), (-10,10)))
 p = Plot(binned, color_map=truecolor.BLUE_RED, x_axis=x_axis, y_axis=y_axis)
 p.upscale((60,60)).show()
 ```
-![Plot Output](./examples/example_4_do_scaling.py.md)
+![Plot Output](./examples/example_4_do_scaling.py.png)
 
 ####  Bin with a finer bin size, use terminal-capability detection to pick a colormap, add border lines to axes:
 ```python
@@ -58,7 +58,7 @@ from densitty.detect import plot
 binned, x_axis, y_axis = bin_with_size(points, (.25, .25), ranges=((-10,10), (-10,10)), border_line=True)
 plot(binned, x_axis=x_axis, y_axis=y_axis).show()
 ```
-![Plot Output](./examples/example_5_use_detect.py.md)
+![Plot Output](./examples/example_5_use_detect.py.png)
 
 ####  A PAM-4 Eye Diagram
 ```python
@@ -73,5 +73,5 @@ y_axis = Axis((-300, 300), border_line=True)
 eye_plot = plot(eye_data, x_axis=x_axis, y_axis=y_axis)
 eye_plot.show()
 ```
-![Plot Output](./examples/example_6_eye_diagram.py.md)
+![Plot Output](./examples/example_6_eye_diagram.py.png)
 

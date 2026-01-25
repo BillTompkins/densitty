@@ -33,4 +33,4 @@ with open(os.path.join(docs_dir, "examples.md"), "wt") as outfile:
                 elif printing:
                     outfile.write(line)
             outfile.write("```\n")
-            outfile.write(f"![Plot Output](./examples/{example}.md)\n\n")
+            outfile.write(f"![Plot Output](./examples/{example}.png)\n\n")
