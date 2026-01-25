@@ -43,6 +43,18 @@ check: lint check-format typecheck test
 colors:
 	PYTHONPATH=. uv run python tests/color_tests.py
 
+.PHONY: examples
+examples:
+	PYTHONPATH=. uv run python examples/run_examples.py
+
+.PHONY: screenshots
+screenshots:
+	uv run --with iterm2,pyobjc examples/generate_screenshots.py
+
+.PHONY: gallery
+gallery: screenshots
+	uv run examples/generate_example_markdown.py
+
 .PHONY: build
 build: ## Build wheel file
 	rm -rf ./dist

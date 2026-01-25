@@ -3,6 +3,7 @@ import math
 from densitty.axis import Axis
 from densitty.detect import plot
 
+# Generate some simulated data for an eye diagram
 def eye(num_rows=48, num_cols=48, signal_levels=(-0.75, 0.75)):
     signal_spread_rows = 3
     signal_spread_cols = 3
@@ -38,9 +39,8 @@ def eye(num_rows=48, num_cols=48, signal_levels=(-0.75, 0.75)):
     return out
 
 
+# For NRZ (PAM-2):
 # eye_data = eye(96, 96, signal_levels=(-.75, .75))
+
+# For PAM-4:
 eye_data = eye(96, 96, signal_levels=(-0.75, -0.25, 0.25, 0.75))
-x_axis = Axis((-1, 1), border_line=True)
-y_axis = Axis((-300, 300), border_line=True)
-my_plot = plot(eye_data, x_axis=x_axis, y_axis=y_axis)
-my_plot.show()

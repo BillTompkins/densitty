@@ -1,0 +1,6 @@
+Given a list of points:
+
+```python
+import random
+points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
+```
