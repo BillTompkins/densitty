@@ -10,6 +10,18 @@ from .axis import Axis
 from .util import FloatLike, ValueRange
 from .util import clamp, make_decimal, make_value_range, most_round, round_up_ish
 
+# Following MatPlotLib, the 'bins' argument for functions can be:
+#  int:                                             number of bins for both X and Y
+#  Sequence[FloatLike]:                             bin locations for both X and Y
+#  tuple(int, int):                                 number of bins for X, number of bins for Y
+#  tuple(Sequence[FloatLike], Sequence[FloatLike]): bin locations for X, bin locations for Y
+
+# a type for the "for both X and Y" variants:
+SingleBinsArg = int | Sequence[FloatLike]
+# a type for the tuple (X,Y) variants:
+ExpandedBinsArg = tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]
+FullBinsArg = SingleBinsArg | ExpandedBinsArg
+
 
 def bin_edges(
     points: Sequence[tuple[FloatLike, FloatLike]],
@@ -174,14 +186,7 @@ def bin_with_size(
     return (bin_edges(points, x_edges, y_edges, drop_outside=drop_outside), x_axis, y_axis)
 
 
-def expand_bins_arg(
-    bins: (
-        int
-        | tuple[int, int]
-        | Sequence[FloatLike]
-        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    ),
-) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+def expand_bins_arg(bins: FullBinsArg) -> ExpandedBinsArg:
     """Deal with 'bins' argument that is meant to apply to both axes"""
     if isinstance(bins, int):
         # we were given a single # of bins
@@ -199,9 +204,7 @@ def expand_bins_arg(
     return bins
 
 
-def bins_to_edges(
-    bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
-) -> tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]:
+def bins_to_edges(bins: ExpandedBinsArg) -> ExpandedBinsArg:
     """Number of edges = number of bins + 1. 'bins' argument may be # of bins,
     or a collection of edges. Only add 1 in the former case.
     """
@@ -243,7 +246,7 @@ def segment_one_dim_if_needed(
 
 def process_bin_args(
     points: Sequence[tuple[FloatLike, FloatLike]],
-    bins: tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]],
+    bins: ExpandedBinsArg,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
     align: bool,
     padding: tuple[FloatLike, FloatLike],
@@ -267,12 +270,7 @@ def process_bin_args(
 
 def histogram2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
-    bins: (
-        int
-        | tuple[int, int]
-        | Sequence[FloatLike]
-        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    ) = 10,
+    bins: FullBinsArg = 10,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
     drop_outside=True,

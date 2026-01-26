@@ -5,7 +5,7 @@ import math
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
-from .binning import expand_bins_arg, histogram2d, process_bin_args
+from .binning import FullBinsArg, expand_bins_arg, histogram2d, process_bin_args
 from .util import FloatLike, ValueRange, partial_first, partial_second
 
 BareSmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
@@ -266,12 +266,7 @@ def smooth_to_bins(
 def smooth2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
     kernel: SmoothingFunc,
-    bins: (
-        int
-        | tuple[int, int]
-        | Sequence[FloatLike]
-        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    ) = 10,
+    bins: FullBinsArg = 10,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
     **axis_args,

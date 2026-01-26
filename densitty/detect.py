@@ -11,7 +11,7 @@ import time
 
 from . import ansi, ascii_art, binning, colorbar, lineart, smoothing, truecolor
 from . import plot as plotmodule
-from .util import FloatLike, ValueRange
+from .util import FloatLike, ValueRange, make_value_range
 
 if sys.platform == "win32":
     # pylint: disable=import-error
@@ -458,12 +458,7 @@ def plot(data, colors=FADE_IN, colorscale=False, **plotargs):
 
 def histplot2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
-    bins: (
-        int
-        | tuple[int, int]
-        | Sequence[FloatLike]
-        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    ) = 10,
+    bins: binning.FullBinsArg = 10,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
     drop_outside=True,
@@ -496,12 +491,7 @@ def histplot2d(
 def densityplot2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
     kernel: Optional[smoothing.SmoothingFunc] = None,
-    bins: (
-        int
-        | tuple[int, int]
-        | Sequence[FloatLike]
-        | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-    ) = 0,
+    bins: binning.FullBinsArg = 0,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
     colors=FADE_IN,
@@ -521,16 +511,29 @@ def densityplot2d(
             raise OSError("No terminal size from os.get_terminal_size()")
         size_x = terminal_size.columns - 10
         size_y = terminal_size.lines - 4
-        bins = (size_x, size_y)
+        expanded_bins: binning.ExpandedBinsArg = (size_x, size_y)
+    else:
+        expanded_bins = binning.expand_bins_arg(bins)
 
     if kernel is None:
-        x_width, y_width = smoothing.pick_kernel_bandwidth(points, bins=(size_x, size_y))
+        if isinstance(expanded_bins[0], Sequence):
+            # we were given a list of bin centers, so generate # of bins and bounds from that:
+            ranges_from_bins = (
+                make_value_range((expanded_bins[0][0], expanded_bins[0][-1])),
+                make_value_range((expanded_bins[1][0], expanded_bins[1][-1])),
+            )
+            num_bins = (len(expanded_bins[0]), len(expanded_bins[1]))
+            x_width, y_width = smoothing.pick_kernel_bandwidth(
+                points, bins=num_bins, ranges=ranges_from_bins
+            )
+        else:
+            x_width, y_width = smoothing.pick_kernel_bandwidth(points, bins=expanded_bins)
         kernel = smoothing.gaussian_with_sigmas(x_width, y_width)
 
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         points=points,
         kernel=kernel,
-        bins=bins,
+        bins=expanded_bins,
         ranges=ranges,
         align=align,
         border_line=border_line,
