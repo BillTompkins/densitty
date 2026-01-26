@@ -3,7 +3,7 @@ import pytest
 import random
 from unittest import mock
 
-from densitty import axis, binning, detect
+from densitty import axis, binning, detect, smoothing
 
 import gen_norm_data
 import golden
@@ -41,7 +41,7 @@ def test_histplot2d_1(points, force_truecolor):
 
 def test_histplot2d_2(points, force_truecolor):
     """40x40 bins, Tell it the data is ranging from -10..10"""
-    plt = detect.histplot2d(points, 40, ((-10, 10), (-10, 10)))
+    plt = detect.histplot2d(points, bins=40, ranges=((-10, 10), (-10, 10)))
     plt.show()
     golden.check(plt.as_strings())
 
@@ -54,6 +54,32 @@ def test_histplot2d_3(points, force_truecolor, set_screensize):
 
 def test_histplot2d_4(points, force_truecolor, set_screensize):
     plt = detect.histplot2d(points, scale=5)
+    plt.show()
+    golden.check(plt.as_strings())
+
+
+def test_densityplot2d_1(points, force_truecolor, set_screensize):
+    plt = detect.densityplot2d(points[:200])
+    plt.show()
+    golden.check(plt.as_strings())
+
+
+def test_densityplot2d_2(points, force_truecolor, set_screensize):
+    plt = detect.densityplot2d(points[:200], bins=40, ranges=((-10, 10), (-10, 10)))
+    plt.show()
+    golden.check(plt.as_strings())
+
+
+def test_densityplot2d_3(points, force_truecolor, set_screensize):
+    kernel = smoothing.gaussian_with_sigmas(1, 1)
+    plt = detect.densityplot2d(points[:200], kernel=kernel, bins=40, ranges=((-10, 10), (-10, 10)))
+    plt.show()
+    golden.check(plt.as_strings())
+
+
+def test_densityplot2d_4(points, force_truecolor, set_screensize):
+    bins = tuple(x * .25 for x in range(-40, 41))
+    plt = detect.densityplot2d(points[:200], bins=bins)
     plt.show()
     golden.check(plt.as_strings())
 

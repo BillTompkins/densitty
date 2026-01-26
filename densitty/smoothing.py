@@ -142,6 +142,17 @@ def pick_kernel_bandwidth(
     if bins[0] <= 0 or bins[1] <= 0:
         raise ValueError("Number of bins must be nonzero")
 
+    # we'll reduce the number of bins gradually until we get the right smoothness
+    # track the number of bins in each direction as a float, so we can maintain the
+    # aspect ratio without roundoff error accumulating:
+    float_bins: tuple[float, float] = bins
+
+    # bin_step: how much we reduce the # of bins by each iteration.
+    # 1.0 in the larger direction, a fraction in the smaller direction:
+    if bins[0] > bins[1]:
+        bin_step = (1.0, (bins[1] / bins[0]))
+    else:
+        bin_step = ((bins[0] / bins[1]), 1.0)
     while bins[0] > 0 and bins[1] > 0:
         binned, x_axis, y_axis = histogram2d(points, bins, ranges, align=False)
         nonzero_bins = [b for row in binned for b in row if b > 0]
@@ -149,13 +160,14 @@ def pick_kernel_bandwidth(
         test_val = sorted(nonzero_bins)[test_pos]
         if test_val >= smoothness:
             break
-        bins = (bins[0] - 1, bins[1] - 1)
+        float_bins = (float_bins[0] - bin_step[0], float_bins[1] - bin_step[1])
+        bins = (round(float_bins[0]), round(float_bins[1]))
     else:
         # We never managed to get 'smoothness' per bin, so just give up and smooth a lot
-        bins = (1, 1)
+        float_bins = (1, 1)
 
-    x_width = float(x_axis.value_range.max - x_axis.value_range.min) / bins[0] / 4
-    y_width = float(y_axis.value_range.max - y_axis.value_range.min) / bins[1] / 4
+    x_width = float(x_axis.value_range.max - x_axis.value_range.min) / float_bins[0] / 4
+    y_width = float(y_axis.value_range.max - y_axis.value_range.min) / float_bins[1] / 4
 
     return (x_width, y_width)
 
