@@ -40,6 +40,9 @@ random_axis_values_half_spaced = tuple(r + (0,) for r in random_axis_values) + t
     r + (1,) for r in random_axis_values
 )
 
+specific_x_axis_values = ((5, util.make_value_range((100000, 200000)), 0),)
+x_axis_values = random_axis_values_half_spaced + specific_x_axis_values
+
 
 def idfn(arg):
     if isinstance(arg, util.ValueRange):
@@ -47,9 +50,7 @@ def idfn(arg):
     return f"{arg}"
 
 
-@pytest.mark.parametrize(
-    "num_bins,value_range,tick_space", random_axis_values_half_spaced, ids=idfn
-)
+@pytest.mark.parametrize("num_bins,value_range,tick_space", x_axis_values, ids=idfn)
 def test_x_axis(num_bins, value_range, tick_space):
     print(f"{num_bins=} {value_range=} {tick_space=}")
     x_labels = axis.gen_full_labels(value_range, num_bins, True, tick_space, "{}")
@@ -60,7 +61,7 @@ def test_x_axis(num_bins, value_range, tick_space):
         labels=x_labels,
         border_line=False,
         values_are_edges=False,
-        fractional_tick_pos=True,
+        fractional_tick_pos=(tick_space == 1),
     )
     for line in x_axis.render_as_x(num_bins, 4):
         print(line)

@@ -6,7 +6,7 @@ import math
 import typing
 
 from bisect import bisect_left
-from decimal import Decimal, BasicContext
+from decimal import BasicContext, Decimal, DecimalTuple
 from fractions import Fraction
 from typing import Any, Callable, NamedTuple, Sequence
 
@@ -83,6 +83,30 @@ def make_decimal(x: FloatLike) -> Decimal:
     if isinstance(x, Decimal):
         return x
     return BasicContext.create_decimal_from_float(float(x))
+
+
+def sanitize_decimals(values: Sequence[Decimal]) -> Sequence[Decimal]:
+    """Strip trailing "0"s if all values in the list have the trailing "0"s
+    So [1.000, 2.000] becomes [1, 2]"""
+    if not values:
+        return []
+
+    as_tuples = [v.as_tuple() for v in values]
+    cur_exponent = as_tuples[0].exponent
+    if not all(t.exponent == cur_exponent for t in as_tuples):
+        # inconsistent exponent: just return them as is
+        return values
+    while cur_exponent < 0 and all(t.digits[-1] == 0 for t in as_tuples):
+        # all values have a trailing 0. Remove, and add a leading 0 to prevent (0,) from vanishing:
+        as_tuples = [
+            DecimalTuple(t.sign, (0,) + t.digits[:-1], cur_exponent + 1) for t in as_tuples
+        ]
+        cur_exponent += 1
+
+    as_decimals = (Decimal(t) for t in as_tuples)
+
+    # zero values may be something like "0E8" or "0E-2". Make them just be "0":
+    return [d if d != 0 else Decimal(0) for d in as_decimals]
 
 
 def make_value_range(v: ValueRange | Sequence[FloatLike]) -> ValueRange:

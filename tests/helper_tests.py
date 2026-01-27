@@ -78,7 +78,7 @@ def test_densityplot2d_3(points, force_truecolor, set_screensize):
 
 
 def test_densityplot2d_4(points, force_truecolor, set_screensize):
-    bins = tuple(x * .25 for x in range(-40, 41))
+    bins = tuple(x * 0.25 for x in range(-40, 41))
     plt = detect.densityplot2d(points[:200], bins=bins)
     plt.show()
     golden.check(plt.as_strings())
