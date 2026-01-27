@@ -134,16 +134,16 @@ def gen_label_subsets(positions: tuple, tick_step: Decimal) -> list[tuple]:
     For tick steps starting with 5: generates every-2nd subsets (2 variants).
     """
     step_digit = tick_step.as_tuple().digits[0]  # leading digit of tick step: 1, 2, or 5
-
     # we want to pick different label subsets depending on whether we're advancing by
     # 1eX, 2eX, or 5eX:
     label_subsets = []
     if step_digit in (1, 2):
         # print on every fifth label, starting at 0..4
         label_subsets += list(positions[start::5] for start in range(5))
-    elif step_digit in (1, 5):
+    elif step_digit == 5:
         # print on every second label, starting at 0 or 1
         label_subsets += list(positions[start::2] for start in range(2))
+
     return label_subsets
 
 
