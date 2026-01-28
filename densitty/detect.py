@@ -9,7 +9,7 @@ from types import MappingProxyType
 from typing import Any, Callable, Optional, Sequence
 import time
 
-from . import ansi, ascii_art, binning, colorbar, lineart, smoothing, truecolor
+from . import ansi, ascii_art, axis, binning, colorbar, lineart, smoothing, truecolor
 from . import plot as plotmodule
 from .util import FloatLike, ValueRange, make_value_range
 
@@ -427,6 +427,24 @@ FADE_IN = MappingProxyType(
     }
 )
 
+RAINBOW = MappingProxyType(
+    {
+        ColorSupport.NONE: ascii_art.EXTENDED,
+        ColorSupport.ANSI_4BIT: ansi.RAINBOW_16,
+        ColorSupport.ANSI_8BIT: ansi.RAINBOW,
+        ColorSupport.ANSI_24BIT: truecolor.RAINBOW,
+    }
+)
+
+REV_RAINBOW = MappingProxyType(
+    {
+        ColorSupport.NONE: ascii_art.EXTENDED,
+        ColorSupport.ANSI_4BIT: ansi.REV_RAINBOW_16,
+        ColorSupport.ANSI_8BIT: ansi.REV_RAINBOW,
+        ColorSupport.ANSI_24BIT: truecolor.REV_RAINBOW,
+    }
+)
+
 
 def pick_colormap(maps: dict[ColorSupport, Callable]) -> Callable:
     """Detect color support and pick the best color map"""
@@ -542,3 +560,27 @@ def densityplot2d(
     p = plot(smoothed, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
 
     return p
+
+
+def grid_heatmap(data, x_labels, y_labels, colors=REV_RAINBOW, max_cell_size=0, **plotargs):
+    """Create a grid-style heatmap, with explicit X and Y labels for each bin"""
+    if max_cell_size == 0:
+        max_x_label = max(len(x) for x in x_labels)
+        max_cell_size = max_x_label + 2
+
+    num_rows = len(data)
+    num_cols = len(data[0])
+    if y_labels and len(y_labels) != num_rows:
+        raise ValueError("Number of Y labels does not match number of rows")
+    if x_labels and len(x_labels) != num_cols:
+        raise ValueError("Number of X labels does not match number of columns")
+
+    # value range along axis is arbitrary, but is needed to locate the labels along the axis
+    # so just use integers 0..N-1
+    x_axis = axis.Axis((0, num_cols - 1), dict(enumerate(x_labels)))
+    y_axis = axis.Axis((0, num_rows - 1), dict(enumerate(y_labels)))
+
+    plt = plot(data, colors=colors, x_axis=x_axis, y_axis=y_axis, flip_y=False, **plotargs)
+    plt.upscale(max_expansion=max_cell_size)
+
+    return plt

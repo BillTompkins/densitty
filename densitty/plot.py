@@ -98,6 +98,16 @@ class Plot:
         """Are there two pixels per output character?"""
         return self.is_color() and self.render_halfheight
 
+    def left_margin(self):
+        if self.y_axis:
+            if self.is_halfheight():
+                num_rows = (len(self.data) + 1) // 2
+            else:
+                num_rows = len(self.data)
+            y_axis_lines = self.y_axis.render_as_y(num_rows, False, False, False)
+            return lineart.display_len(y_axis_lines[0])
+        return 0
+
     def as_strings(self):
         """Scale data to 0..1 range and feed it through the appropriate output function"""
         if self.is_halfheight():
