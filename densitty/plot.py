@@ -136,10 +136,10 @@ class Plot:
         ):
             yield frame.translate(self.font_mapping) + plot_line + padding + glued_on
 
-    def show(self, printer=print):
+    def show(self, prefix="", printer=print):
         """Simple helper function to output/print a plot"""
         for line in self.as_strings():
-            printer(line)
+            printer(prefix + line)
 
     def _compute_scaling_multipliers(
         self,
@@ -230,8 +230,15 @@ class Plot:
         # repeat each of those by the row multiplier
         self.data = repeat_each(x_expanded, row_mult)
 
+        # If we have axes, adjust for the new pixel/bin size
+        if self.x_axis:
+            self.x_axis.upscale(len(self.data[0]), col_mult)
+
+        if self.y_axis:
+            self.y_axis.upscale(len(self.data), row_mult)
+
         # if we have a glued-on plot to the right (likely a colorbar), scale it up in Y to match
-        if self.to_right:
+        if isinstance(self.to_right, Plot):
             self.to_right.upscale(max_size=0, max_expansion=(1, col_mult), keep_aspect_ratio=False)
         return self
 

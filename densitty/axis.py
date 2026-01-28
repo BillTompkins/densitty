@@ -410,3 +410,19 @@ class Axis:
                 label_values = label_values[1:]  # pop that first label since we added it
 
         return "".join(tick_line), "".join(label_line)
+
+    def upscale(self, new_num_bins, multiplier):
+        """Adjust axis for an upscaled plot"""
+        if self.values_are_edges:
+            # upscaling doesn't move the axis edges. First edge of first bin is the same.
+            return
+        old_num_bins = new_num_bins // multiplier
+        old_bin_width = (self.value_range.max - self.value_range.min) / (old_num_bins - 1)
+        new_bin_width = old_bin_width / multiplier
+        # we used to have a value for the center of the first bin, but now that bin is
+        # 'multiplier' bins, and the value corresponds to the center of that _group_ of bins
+        # Find the offset between that group center, and the center of the new edge bin:
+        offset = new_bin_width * (multiplier - 1) / 2
+        self.value_range = util.make_value_range(
+            (self.value_range.min - offset, self.value_range.max + offset)
+        )
