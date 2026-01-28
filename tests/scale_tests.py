@@ -108,7 +108,7 @@ def test_maxsize_fitscreen_noaxes(border_nonhist, monkeypatch):
     plt = copy.deepcopy(border_nonhist)
     plt.x_axis = None
     plt.y_axis = None
-    upscaled = plt.upscale(max_expansion=(None, None))
+    upscaled = plt.upscale(max_expansion=(None, None), keep_aspect_ratio=False)
     upscaled.show()
     golden.check(upscaled.as_strings())
 
@@ -116,7 +116,7 @@ def test_maxsize_fitscreen_noaxes(border_nonhist, monkeypatch):
 def test_maxsize_reservemargin(border_nonhist, monkeypatch):
     monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
     upscaled = copy.deepcopy(border_nonhist).upscale(
-        max_size=(-30, -30), max_expansion=(None, None)
+        max_size=(-30, -30), max_expansion=(None, None), keep_aspect_ratio=False
     )
     upscaled.show()
     golden.check(upscaled.as_strings())
@@ -125,7 +125,7 @@ def test_maxsize_reservemargin(border_nonhist, monkeypatch):
 def test_maxsize_set_default_size(border_nonhist):
     plot.default_terminal_size = os.terminal_size((100, 100))
     upscaled = copy.deepcopy(border_nonhist).upscale(
-        max_size=(-30, -30), max_expansion=(None, None)
+        max_size=-30, max_expansion=None, keep_aspect_ratio=False
     )
     upscaled.show()
     golden.check(upscaled.as_strings())

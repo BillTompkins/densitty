@@ -483,7 +483,7 @@ def histplot2d(
     if scale is True:
         p.upscale()
     elif scale:
-        p.upscale(max_expansion=(scale, scale))
+        p.upscale(max_expansion=scale)
 
     return p
 

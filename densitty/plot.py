@@ -182,24 +182,29 @@ class Plot:
 
     def upscale(
         self,
-        max_size: tuple[int, int] = (0, 0),
-        max_expansion: tuple[int, int] = (3, 3),
-        keep_aspect_ratio: bool = False,
+        max_size: int | tuple[int, int] = 0,
+        max_expansion: int | tuple[int, int] = 3,
+        keep_aspect_ratio: bool = True,
     ):
         """Scale up 'data' by repeating lines and values within lines.
 
         Parameters
         ----------
-        max_size : tuple (int, int)
+        max_size : int or tuple (int, int)
                    If positive: Maximum number of columns, maximum number of rows
                    If zero: Use terminal size
                    If negative: Use as offset from terminal size
                    Default: Based on terminal size (0).
-        max_expansion : tuple (int, int)
-                   maximum expansion factor in each direction. Default (3,3). 0=> No maximum
+        max_expansion : int or tuple (int, int)
+                   maximum expansion factor in each direction. Default (3,3). None=> No maximum
         keep_aspect_ratio : bool
                    Require that X and Y scaling are equal.
         """
+        if isinstance(max_size, int):
+            max_size = (max_size, max_size)
+
+        if isinstance(max_expansion, int) or max_expansion is None:
+            max_expansion = (max_expansion, max_expansion)
 
         float_mult = self._compute_scaling_multipliers(max_size, keep_aspect_ratio)
         col_mult = max(int(float_mult[0]), 1)
@@ -224,6 +229,10 @@ class Plot:
 
         # repeat each of those by the row multiplier
         self.data = repeat_each(x_expanded, row_mult)
+
+        # if we have a glued-on plot to the right (likely a colorbar), scale it up in Y to match
+        if self.to_right:
+            self.to_right.upscale(max_size=0, max_expansion=(1, col_mult), keep_aspect_ratio=False)
         return self
 
     def glue_on(self, to_right, padding="  "):
