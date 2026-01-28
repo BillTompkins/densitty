@@ -4,61 +4,69 @@ Given a list of points:
 import random
 points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
 ```
-####  Generate a 2-D Histogram with 40x40 bins & axes using helper function, default colors, etc.
+####  Generate a 2-D Density plot sized to screen width, default colors & plot/axis options
 ```python
-# Use the 'histplot2d' helper function in 'detect.py' to pick color map based on terminal
-# capabilities, bin the points into 40 bins in both X and Y, and make a plot with axes:
-from densitty.detect import histplot2d
+# Use 'densityplot2d' to pick color map based on terminal capabilities, pick a smoothing
+# kernel to use, and make a density plot of the first 200 points with the plot size
+# determined by the terminal window's width:
+from densitty import densityplot2d
 
-histplot2d(points, 40).show()
+densityplot2d(points[:200]).show()
 ```
-![Plot Output](./examples/example_1_histplot2d_basic.png)
+![Plot Output](./examples/example_1_densityplot2d.png)
 
-####  Generate a 2-D Histogram by explicit binning & plot creation
+####  Generate a 2-D Histogram with 30x20 bins
 ```python
-from densitty.binning import bin_with_size
-from densitty.plot import Plot
+# Use 'histplot2d()'  to pick color map based on terminal capabilities, bin the
+# points into 30 X, 20 Y bins, scaling to 4 'pixels' per bin in X and Y
 
-# Bin the data into fixed-width 1x1 bins
-binned, _, _= bin_with_size(points, 1)
-# Plot the resulting histogram
-Plot(binned).show()
+from densitty import histplot2d
+
+histplot2d(points[:200], (30,20), scale=4, colorscale=True).show()
 ```
-![Plot Output](./examples/example_2_fixed_width_bins.png)
+![Plot Output](./examples/example_2_histplot2d.png)
 
-####  Add the axes:
+####  Generate a 2-D Histogram with 60x40 bins
 ```python
-# bin in 1x1 bins, keeping the axis outputs
-binned, x_axis, y_axis = bin_with_size(points, 1)
+# Bin the points with an explicit bin size (rather than number of bins), and plot the
+# result as a 2-D histogram:
+from densitty import histplot2d
 
-# include the axes with the plot:
-p = Plot(binned, x_axis=x_axis, y_axis=y_axis)
+histplot2d(points, (60,40), scale=2, colorscale=True).show()
+```
+![Plot Output](./examples/example_3_histplot2d_finer.png)
+
+####  Generate a 2-D Histogram with fixed-size bins
+```python
+from densitty import bin_with_size, plot
+
+# Bin the points with an explicit bin size of 0.5
+# rather than number or location of bins as histplot2d takes
+binned, x_axis, y_axis = bin_with_size(points, 0.5, border_line=True)
+
+# Plot the resulting 2-D histogram,
+p = plot(binned, colorscale=True, x_axis=x_axis, y_axis=y_axis).upscale()
 p.show()
 ```
-![Plot Output](./examples/example_3_add_axes.png)
+![Plot Output](./examples/example_4_histplot2d_fixedsizebins.png)
 
-####  Explicit binning boundaries, scaled output with specific colormap
+####  Generate a Grid-style heatmap with user-specified labels
 ```python
-# Use explicit binning boundaries of -10..10
-# scale up the output to 60x60, and use a blue-red 24b colormap
-from densitty import truecolor
+# random values for the heatmap, in 10x8 grid
+values = [[random.triangular(-2, 10, 1) for _ in range(10)] for _ in range(8)]
 
-binned, x_axis, y_axis = bin_with_size(points, 1, ranges=((-10,10), (-10,10)))
-p = Plot(binned, color_map=truecolor.BLUE_RED, x_axis=x_axis, y_axis=y_axis)
-p.upscale((60,60)).show()
+from densitty import grid_heatmap, make_colorbar
+
+plt = grid_heatmap(values,
+                   x_labels=[f"s{i}" for i in range(1,11)],
+                   y_labels=["Frogs", "Lizards", "Humans", "Antelope", "Bears", "Ants", "Penguins", "Sloths"],
+                   )
+plt.show()
+# add a color scale based on the plot data, indented by the plot's left margin:
+scale = make_colorbar(plt, label_fmt="{:0.2}")
+scale.show(prefix=" " * plt.left_margin())
 ```
-![Plot Output](./examples/example_4_do_scaling.png)
-
-####  Bin with a finer bin size, use terminal-capability detection to pick a colormap, add border lines to axes:
-```python
-# Use finer bin size, add border lines to axes
-# and use detect.plot, so terminal-capability detection is used to pick a color map
-from densitty.detect import plot
-
-binned, x_axis, y_axis = bin_with_size(points, (.25, .25), ranges=((-10,10), (-10,10)), border_line=True)
-plot(binned, x_axis=x_axis, y_axis=y_axis).show()
-```
-![Plot Output](./examples/example_5_use_detect.png)
+![Plot Output](./examples/example_5_grid_heatmap.png)
 
 ####  A PAM-4 Eye Diagram
 ```python
