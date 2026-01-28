@@ -17,12 +17,12 @@ and that will override any other detection heuristics in the code.
 If `FORCE_COLOR` is not set, The detection code will examine other environment variables, and optionally try issuing color codes while measuring the cursor movement, to make an educated guess as to the proper level of color support.
 
 ## Terminal Size
-Python has some built-in code to determine the current terminal size which can be used by the `Plot.upscale()` function to determine the maximum possible output size. If that may fail, you can set the `default_terminal_size` variable in `plot.py` to provide a sensible default for your application. For example:
+Python has some built-in code to determine the current terminal size which can be used by the `Plot.upscale()` function to determine the maximum possible output size. If that may fail, you can set the `default_terminal_size` variable in `plotting.py` to provide a sensible default for your application. For example:
 ```python
 import os
-from densitty import plot
+from densitty import plotting
 
-plot.default_terminal_size = os.terminal_size((100, 100))
+plotting.default_terminal_size = os.terminal_size((100, 100))
 ```
 to set a default of 100x100.
 

@@ -3,7 +3,7 @@ import itertools
 import pytest
 import sys
 
-from densitty import ansi, ascii_art, axis, lineart, plot, truecolor
+from densitty import ansi, ascii_art, axis, Axis, lineart, Plot, truecolor
 from densitty.util import make_value_range, ValueRange
 
 import gen_norm_data
@@ -44,13 +44,13 @@ def idfn(arg):
 )
 def test_axes(data, halfheight, axis_range, fontmap, x_border, y_border, x_edges, y_edges):
     """Combiniatorial check of axis options"""
-    x_axis = axis.Axis(
+    x_axis = Axis(
         axis_range, border_line=x_border, values_are_edges=x_edges, fractional_tick_pos=True
     )
-    y_axis = axis.Axis(
+    y_axis = Axis(
         axis_range, border_line=y_border, values_are_edges=y_edges, fractional_tick_pos=True
     )
-    p = plot.Plot(
+    p = Plot(
         data,
         color_map=ansi.GRAYSCALE,
         render_halfheight=halfheight,
@@ -86,11 +86,11 @@ ascii_combinations = itertools.product(
 @pytest.mark.parametrize("x_border,y_border,x_edges,y_edges", ascii_combinations)
 def test_axes_ascii(data, x_border, y_border, x_edges, y_edges):  # , request):
     """Combiniatorial check of axis options"""
-    x_axis = axis.Axis(ValueRange(-1, 1), border_line=x_border, values_are_edges=x_edges)
-    y_axis = axis.Axis(
+    x_axis = Axis(ValueRange(-1, 1), border_line=x_border, values_are_edges=x_edges)
+    y_axis = Axis(
         ValueRange(Decimal(-1), Decimal(1)), border_line=y_border, values_are_edges=y_edges
     )
-    p = plot.Plot(
+    p = Plot(
         data,
         color_map=ascii_art.EXTENDED,
         render_halfheight=False,
@@ -106,9 +106,9 @@ def test_axes_ascii(data, x_border, y_border, x_edges, y_edges):  # , request):
 
 def test_axes_small():
     minidata = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-    x_axis = axis.Axis((-1, 1), border_line=True)
-    y_axis = axis.Axis((-1, 1), border_line=True)
-    p = plot.Plot(
+    x_axis = Axis((-1, 1), border_line=True)
+    y_axis = Axis((-1, 1), border_line=True)
+    p = Plot(
         minidata,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -121,9 +121,9 @@ def test_axes_small():
 
 
 def test_axes_labelsgiven(data):
-    x_axis = axis.Axis((-1, 1), labels={-1: "AAA", 1: "BBB"}, border_line=True)
-    y_axis = axis.Axis((-1, 1), labels={-1: "foo", 1: "bar"}, border_line=True)
-    p = plot.Plot(
+    x_axis = Axis((-1, 1), labels={-1: "AAA", 1: "BBB"}, border_line=True)
+    y_axis = Axis((-1, 1), labels={-1: "foo", 1: "bar"}, border_line=True)
+    p = Plot(
         data,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -138,9 +138,9 @@ def test_axes_labelsgiven(data):
 def test_axes_1():
     """Small plot with egregiously large values that won't fit"""
     dataset = gen_norm_data.gen_norm(num_rows=10, num_cols=10, width=0.3, height=0.15, angle=0.5)
-    x_axis = axis.Axis((10000000000, 100000000000))
-    y_axis = axis.Axis((0, 1))
-    p = plot.Plot(
+    x_axis = Axis((10000000000, 100000000000))
+    y_axis = Axis((0, 1))
+    p = Plot(
         dataset,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -155,9 +155,9 @@ def test_axes_2():
     """Very small plot"""
     """Small plot with large values that won't fit well"""
     dataset = gen_norm_data.gen_norm(num_rows=7, num_cols=7, width=0.3, height=0.15, angle=0.5)
-    x_axis = axis.Axis((10, 1000))
-    y_axis = axis.Axis((0, 1))
-    p = plot.Plot(
+    x_axis = Axis((10, 1000))
+    y_axis = Axis((0, 1))
+    p = Plot(
         dataset,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -170,9 +170,9 @@ def test_axes_2():
 def test_axes_3():
     """Try to excercise edge-case code path"""
     dataset = gen_norm_data.gen_norm(num_rows=11, num_cols=18, width=0.3, height=0.15, angle=0.5)
-    x_axis = axis.Axis((0, 800))
-    y_axis = axis.Axis((0, 1))
-    p = plot.Plot(
+    x_axis = Axis((0, 800))
+    y_axis = Axis((0, 1))
+    p = Plot(
         dataset,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -185,9 +185,9 @@ def test_axes_3():
 def test_axes_single_pixel():
     """Single-pixel plot"""
     dataset = [[0]]
-    x_axis = axis.Axis((-0.2, 1), fractional_tick_pos=True)
-    y_axis = axis.Axis((0, 1))
-    p = plot.Plot(
+    x_axis = Axis((-0.2, 1), fractional_tick_pos=True)
+    y_axis = Axis((0, 1))
+    p = Plot(
         dataset,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -205,9 +205,9 @@ def test_axes_invalid_pick_step_size():
 
 def test_axes_invalid_1(data):
     """Test zero-length axis range"""
-    x_axis = axis.Axis((0, 0))
-    y_axis = axis.Axis((0, 0))
-    p = plot.Plot(
+    x_axis = Axis((0, 0))
+    y_axis = Axis((0, 0))
+    p = Plot(
         data,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,
@@ -229,9 +229,9 @@ if __name__ == "__main__":
     test_axes_small()
     test_axes_labelsgiven(dataset)
 
-    x_axis = axis.Axis((-10_000_000_000_000, 10_000_000_000_000))
-    y_axis = axis.Axis((-1, 1))
-    p = plot.Plot(
+    x_axis = Axis((-10_000_000_000_000, 10_000_000_000_000))
+    y_axis = Axis((-1, 1))
+    p = Plot(
         dataset,
         color_map=ansi.GRAYSCALE,
         y_axis=y_axis,

@@ -3,7 +3,7 @@ import os
 import pytest
 import sys
 
-from densitty import ansi, ascii_art, axis, detect, lineart, plot, truecolor
+from densitty import ansi, ascii_art, Axis, detect, lineart, Plot, plot, truecolor
 import gen_norm_data
 import golden
 
@@ -17,10 +17,10 @@ def mock_get_terminal_size():
 def histlike():
     data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
 
-    y_axis = axis.Axis((-1, 1), border_line=True, values_are_edges=True)
-    x_axis = axis.Axis((-1, 1), border_line=True, values_are_edges=True)
+    y_axis = Axis((-1, 1), border_line=True, values_are_edges=True)
+    x_axis = Axis((-1, 1), border_line=True, values_are_edges=True)
 
-    my_plot = plot.Plot(
+    my_plot = Plot(
         data=data,
         color_map=truecolor.FADE_IN,
         y_axis=y_axis,
@@ -33,20 +33,20 @@ def histlike():
 def heatlike():
     data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
 
-    y_axis = axis.Axis(
+    y_axis = Axis(
         (-1, 1),
         border_line=True,
         values_are_edges=False,
         fractional_tick_pos=False,
     )
-    x_axis = axis.Axis(
+    x_axis = Axis(
         (-1, 1),
         border_line=True,
         values_are_edges=False,
         fractional_tick_pos=False,
     )
 
-    my_plot = plot.Plot(
+    my_plot = Plot(
         data=data,
         color_map=truecolor.FADE_IN,
         y_axis=y_axis,

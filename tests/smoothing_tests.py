@@ -3,7 +3,7 @@ import pytest
 import random
 import sys
 
-from densitty import detect, plot, smoothing
+from densitty import detect, Plot, smoothing
 import golden
 
 
@@ -21,7 +21,7 @@ def test_smooth_data_1(data):
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         data, smoothing.triangle(2, 2), bins=(ctrs, ctrs)
     )
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(x_axis, "test_smooth_data_1_x_axis")
     golden.check(y_axis, "test_smooth_data_1_y_axis")
     golden.check(smoothed)
@@ -32,7 +32,7 @@ def test_smooth_data_2(data):
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         data, smoothing.triangle(2, 2), bins=(80, 80), ranges=((1, 10), (1, 10))
     )
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(x_axis, "test_smooth_data_2_x_axis")
     golden.check(y_axis, "test_smooth_data_2_y_axis")
     golden.check(smoothed)
@@ -42,7 +42,7 @@ def test_smooth_data_3(data):
     """provide just the number of centers"""
     kernel = smoothing.gaussian_with_inv_cov([[2, 0], [0, 2]])
     smoothed, x_axis, y_axis = smoothing.smooth2d(data, kernel, bins=(80, 80))
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(x_axis, "test_smooth_data_3_x_axis")
     golden.check(y_axis, "test_smooth_data_3_y_axis")
     golden.check(smoothed)
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     kernel = smoothing.gaussian_with_inv_cov([[2, 0], [0, 2]])
     smoothed, x_axis, y_axis = smoothing.smooth2d(points, kernel, bins=(80, 80))
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
 
     x_ctrs = [(x_i / args.cols - 0.5) * 20 for x_i in range(args.cols)]
     y_ctrs = [(y_i / args.rows - 0.5) * 20 for y_i in range(args.rows)]
@@ -76,12 +76,12 @@ if __name__ == "__main__":
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         points, smoothing.triangle(2, 2), bins=(args.rows, args.cols)
     )
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
 
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         points, smoothing.gaussian_with_sigmas(0.5, 0.5), bins=(args.rows, args.cols)
     )
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
 
     x_width, y_width = smoothing.pick_kernel_bandwidth(
         points,
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     smoothed, x_axis, y_axis = smoothing.smooth2d(
         points, k, bins=(args.rows, args.cols), ranges=((-10, 10), (-10, 10))
     )
-    plot.Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
+    Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
 
     detect.densityplot2d(points).show()
 

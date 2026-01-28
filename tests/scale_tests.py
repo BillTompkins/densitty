@@ -4,7 +4,7 @@ import os
 import pytest
 
 
-from densitty import ansi, ascii_art, axis, detect, lineart, plot, truecolor
+from densitty import ansi, ascii_art, Axis, detect, lineart, Plot, plotting, truecolor
 import gen_norm_data
 import golden
 
@@ -18,16 +18,16 @@ def mock_get_terminal_size():
 def histlike():
     data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
 
-    y_axis = axis.Axis((Decimal(-1), Decimal(1)), border_line=False, values_are_edges=True)
-    x_axis = axis.Axis((-1, 1), border_line=False, values_are_edges=True)
+    y_axis = Axis((Decimal(-1), Decimal(1)), border_line=False, values_are_edges=True)
+    x_axis = Axis((-1, 1), border_line=False, values_are_edges=True)
 
     # x_axis.fractional_tick_pos = True
     # y_axis.fractional_tick_pos = True
 
-    my_plot = plot.Plot(
+    my_plot = Plot(
         data=data,
         color_map=truecolor.FADE_IN,
-        # font_mapping = plot.overstrike_font,
+        # font_mapping = plotting.overstrike_font,
         y_axis=y_axis,
         x_axis=x_axis,
         min_data=-0.2,
@@ -38,13 +38,13 @@ def histlike():
 def bordered():
     data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
 
-    y_axis = axis.Axis(
+    y_axis = Axis(
         (Decimal(-1), Decimal(1)),
         border_line=True,
         values_are_edges=False,
         fractional_tick_pos=False,
     )
-    x_axis = axis.Axis(
+    x_axis = Axis(
         (-1, 1),
         border_line=True,
         values_are_edges=False,
@@ -54,10 +54,10 @@ def bordered():
     # x_axis.fractional_tick_pos = True
     # y_axis.fractional_tick_pos = True
 
-    my_plot = plot.Plot(
+    my_plot = Plot(
         data=data,
         color_map=truecolor.FADE_IN,
-        # font_mapping = plot.overstrike_font,
+        # font_mapping = plotting.overstrike_font,
         y_axis=y_axis,
         x_axis=x_axis,
         min_data=-0.2,
@@ -123,7 +123,7 @@ def test_maxsize_reservemargin(border_nonhist, monkeypatch):
 
 
 def test_maxsize_set_default_size(border_nonhist):
-    plot.default_terminal_size = os.terminal_size((100, 100))
+    plotting.default_terminal_size = os.terminal_size((100, 100))
     upscaled = copy.deepcopy(border_nonhist).upscale(
         max_size=-30, max_expansion=None, keep_aspect_ratio=False
     )

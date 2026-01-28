@@ -6,8 +6,7 @@ random.seed(1)  # so that the data is consistent between runs
 # random values for the heatmap, in 10x8 grid
 values = [[random.triangular(-2, 10, 1) for _ in range(10)] for _ in range(8)]
 
-from densitty.colorbar import colorbar
-from densitty.detect import grid_heatmap
+from densitty import grid_heatmap, make_colorbar
 
 plt = grid_heatmap(values,
                    x_labels=[f"s{i}" for i in range(1,11)],
@@ -15,5 +14,5 @@ plt = grid_heatmap(values,
                    )
 plt.show()
 # add a color scale based on the plot data, indented by the plot's left margin:
-scale = colorbar(plt, label_fmt="{:0.2}")
+scale = make_colorbar(plt, label_fmt="{:0.2}")
 scale.show(prefix=" " * plt.left_margin())

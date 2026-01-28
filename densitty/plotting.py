@@ -99,6 +99,7 @@ class Plot:
         return self.is_color() and self.render_halfheight
 
     def left_margin(self):
+        """Returns the column of the first plotted data"""
         if self.y_axis:
             if self.is_halfheight():
                 num_rows = (len(self.data) + 1) // 2

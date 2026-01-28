@@ -1,15 +1,15 @@
 """Colorbar generation for density plots."""
 
 from .axis import Axis
-from .plot import Plot
+from .plotting import Plot
 
 
-def colorbar(
+def make_colorbar(
     source_plot: Plot,
     label_fmt: str = "{}",
     vertical: bool = False,
 ) -> Plot:
-    """Create a colorbar from an existing Plot.
+    """Create a colorbar Plot object from an existing Plot.
 
     Parameters
     ----------
@@ -79,6 +79,6 @@ def colorbar(
 
 def add_colorbar(source_plot: Plot, label_fmt: str = "{}", padding: str = "  ") -> Plot:
     """Add a vertical colorbar to an existing Plot."""
-    cb = colorbar(source_plot, label_fmt, vertical=True)
+    cb = make_colorbar(source_plot, label_fmt, vertical=True)
     source_plot.glue_on(cb, padding)
     return source_plot

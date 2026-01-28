@@ -5,8 +5,7 @@ random.seed(1)  # so that the data is consistent between runs
 points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
 
 # START printed output
-from densitty.binning import bin_with_size
-from densitty.detect import plot
+from densitty import bin_with_size, plot
 
 # Bin the points with an explicit bin size of 0.5
 # rather than number or location of bins as histplot2d takes

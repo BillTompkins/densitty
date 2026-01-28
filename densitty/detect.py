@@ -9,8 +9,7 @@ from types import MappingProxyType
 from typing import Any, Callable, Optional, Sequence
 import time
 
-from . import ansi, ascii_art, axis, binning, colorbar, lineart, smoothing, truecolor
-from . import plot as plotmodule
+from . import ansi, ascii_art, axis, binning, colorbar, lineart, plotting, smoothing, truecolor
 from .util import FloatLike, ValueRange, make_value_range
 
 if sys.platform == "win32":
@@ -468,7 +467,7 @@ def plot(data, colors=FADE_IN, colorscale=False, **plotargs):
      plotargs: any Plot() keyword arguments
     """
     colormap = pick_colormap(colors)
-    the_plot = plotmodule.Plot(data, colormap, **plotargs)
+    the_plot = plotting.Plot(data, colormap, **plotargs)
     if colorscale:
         colorbar.add_colorbar(the_plot)
     return the_plot
@@ -524,7 +523,7 @@ def densityplot2d(
         try:
             terminal_size: Optional[os.terminal_size] = os.get_terminal_size()
         except OSError:
-            terminal_size = plotmodule.default_terminal_size
+            terminal_size = plotting.default_terminal_size
         if terminal_size is None:
             raise OSError("No terminal size from os.get_terminal_size()")
         size_x = terminal_size.columns - 10

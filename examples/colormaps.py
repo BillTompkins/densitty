@@ -1,6 +1,6 @@
 import sys
 
-from densitty import ansi, ascii_art, axis, plot, truecolor
+from densitty import ansi, ascii_art, axis, Plot, truecolor
 
 ramp_data = [[x * 0.1 for x in range(200)]]
 
@@ -62,5 +62,5 @@ if __name__ == "__main__":
         for name, colormap in maps.items():
             print()
             print(f"{name}:")
-            p = plot.Plot(ramp_data, color_map=colormap, x_axis=x_axis, render_halfheight=False)
+            p = Plot(ramp_data, color_map=colormap, x_axis=x_axis, render_halfheight=False)
             p.show()

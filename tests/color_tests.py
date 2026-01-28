@@ -1,7 +1,7 @@
 import pytest
 import sys
 
-from densitty import ansi, ascii_art, axis, plot, truecolor
+from densitty import ansi, ascii_art, Axis, Plot, truecolor
 import golden
 
 ramp_data = [[x * 0.1 - 1 for x in range(110)], [10 - x * 0.1 for x in range(110)]]
@@ -28,27 +28,27 @@ color_maps = [
 @pytest.mark.parametrize("map_name", color_maps)
 def test_colors(map_name, display=False):
     colormap = eval(map_name)
-    p = plot.Plot(ramp_data[0:1], color_map=colormap, render_halfheight=False)
+    p = Plot(ramp_data[0:1], color_map=colormap, render_halfheight=False)
     golden.check(p.as_strings(), map_name)
 
 
 @pytest.mark.parametrize("map_name", color_maps)
 def test_halfheight_colors(map_name, display=False):
     colormap = eval(map_name)
-    p = plot.Plot(ramp_data[0:1], color_map=colormap)
+    p = Plot(ramp_data[0:1], color_map=colormap)
     golden.check(p.as_strings(), map_name + "_halfheight")
 
 
 def display_colormap(colormap):
     color_mapping = eval(colormap)
-    x_axis = axis.Axis((0, 1), border_line=True)
-    p = plot.Plot(ramp_data[0:1], color_map=color_mapping, x_axis=x_axis, render_halfheight=False)
+    x_axis = Axis((0, 1), border_line=True)
+    p = Plot(ramp_data[0:1], color_map=color_mapping, x_axis=x_axis, render_halfheight=False)
     print(colormap)
     p.show()
 
 
 def test_ascii(display=False):
-    p = plot.Plot(
+    p = Plot(
         ramp_data,
         min_data=0,
         max_data=10,
@@ -64,7 +64,7 @@ def test_ascii(display=False):
 
 def test_halfheight(display=False):
     name = f"halfheight"
-    p = plot.Plot(
+    p = Plot(
         ramp_data,
         min_data=0,
         max_data=10,
@@ -78,7 +78,7 @@ def test_halfheight(display=False):
 
 
 def test_halfheight_single_row(display=False):
-    p = plot.Plot(
+    p = Plot(
         ramp_data[0:1],
         min_data=0,
         max_data=10,
@@ -93,7 +93,7 @@ def test_halfheight_single_row(display=False):
 
 
 def test_auto_color_limits(display=False):
-    p = plot.Plot(
+    p = Plot(
         ramp_data[0:1],
         color_map=truecolor.BLUE_RED,
     )
@@ -107,7 +107,7 @@ def test_auto_color_limits(display=False):
 
 def test_auto_color_allzero(display=False):
     zero_data = [[0 for x in range(110)]]
-    p = plot.Plot(
+    p = Plot(
         zero_data,
         color_map=truecolor.BLUE_RED,
     )
