@@ -29,8 +29,8 @@ async def main(connection):
 
     for example in sorted(examples):
         example_path = os.path.join(example_dir, example)
-        cmd = f"/bin/bash -l -c 'cd {densitty_dir}; {screenshot_prog} {example_path}; sleep 4'"
+        cmd = f"/bin/bash -l -c 'cd {densitty_dir}; {screenshot_prog} {example_path}; sleep 5'"
         await iterm2.Window.async_create(connection, profile="screenshot", command=cmd)
-        await asyncio.sleep(5)
+        await asyncio.sleep(8)
 
 iterm2.run_until_complete(main, False)

@@ -20,6 +20,7 @@ echo
 PYTHONPATH=. uv run $1
 
 echo
+sleep 1
 echo
 
 mkdir -p examples/uncropped
