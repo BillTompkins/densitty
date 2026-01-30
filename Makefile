@@ -2,6 +2,8 @@
 
 .PHONY: test-ci
 test-ci:
+	rm -rf tests/new_goldens
+	mkdir -p tests/new_goldens
 	PYTHONPATH=. uv run python -m pytest tests/*.py
 
 .PHONY: test

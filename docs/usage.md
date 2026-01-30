@@ -19,8 +19,7 @@ For terminals that don't support colors, or for that old-school look, `ascii_art
 
 ### Binning
 `binning.py` provides utility functions to bin a list of (X,Y) values into a dataset suitable for plotting with the `Plot` class.
-`histogram2d()` is similar to Matplotlib's histogram2d: you can specify the number of bins, or the bin edges.
-`bin_with_size()` is similar, but takes the bin size(s) as arguments rather than the number of bins.
+`histogram2d()` is similar to Matplotlib's histogram2d: you can specify the number of bins, or the bin edges. Additionally/alternatively, you can specify the bin size.
 
 ### Terminal Capability Detection
 `detect.py` has utility routines to try to detect the current terminal's capabilities. These routines are leveraged in several helper functions:

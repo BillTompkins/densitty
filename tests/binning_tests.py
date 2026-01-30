@@ -29,13 +29,13 @@ def data_to_edge():
 
 def test_binning_drop_data():
     points = [(x, 1) for x in np.arange(-1.0, 11.0, 0.25)]
-    binned = binning.bin_edges(points, (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), (0, 1, 2))
+    binned = binning.bin_by_edges(points, (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), (0, 1, 2))
     golden.check(binned)
 
 
 def test_binning_no_drop_data():
     points = [(x, 1) for x in np.arange(-1.0, 11.0, 0.25)]
-    binned = binning.bin_edges(
+    binned = binning.bin_by_edges(
         points, (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), (0, 1, 2), drop_outside=False
     )
     golden.check(binned)
@@ -120,27 +120,28 @@ def test_hist2d_invalid_args(data):
 
 def test_bin_data_1(data):
     """provide bin sizes"""
-    binned = binning.bin_with_size(data, (1, 1), ((1, 10), (1, 10)))
+    binned = binning.histogram2d(data, ranges=((1, 10), (1, 10)), bin_size=(1, 1))
     golden.check(binned)
 
 
 def test_bin_data_2(data):
     """provide bin sizes, use calculated data min/max"""
-    binned = binning.bin_with_size(data, (1, 1))
+    binned = binning.histogram2d(data, bin_size=(1, 1))
+    # if there's an issue, it is likely with the axis/bin positions, so print them:
     print(binned[1:])
     golden.check(binned)
 
 
 def test_bin_data_3(data):
     """provide single bin size, use calculated data min/max"""
-    binned = binning.bin_with_size(data, 1)
+    binned = binning.histogram2d(data, bin_size=1)
     print(binned[1:])
     golden.check(binned)
 
 
 def test_bin_data_unaligned(data):
     """Don't require bin edges to be aligned"""
-    binned = binning.bin_with_size(data, (1, 1), ((0.5, 10), (0.5, 10)), align=False)
+    binned = binning.histogram2d(data, ranges=((0.5, 10), (0.5, 10)), bin_size=(1, 1), align=False)
     golden.check(binned)
 
 
@@ -161,8 +162,13 @@ if __name__ == "__main__":
         print(f"Binned data size: {len(binned[0])}x{len(binned)}")
     detect.plot(binned, x_axis=x_axis, y_axis=y_axis).show()
 
-    binned, x_axis, y_axis = binning.bin_with_size(
-        points, (0.1, 0.1), ((0, 1), (0, 1)), align=True, drop_outside=True, border_line=True
+    binned, x_axis, y_axis = binning.histogram2d(
+        points,
+        bin_size=(0.1, 0.1),
+        ranges=((0, 1), (0, 1)),
+        align=True,
+        drop_outside=True,
+        border_line=True,
     )
     histplot = detect.plot(binned, x_axis=x_axis, y_axis=y_axis)
     histplot.show()

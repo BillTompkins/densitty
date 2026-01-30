@@ -5,8 +5,14 @@ import math
 from typing import Callable, Optional, Sequence
 
 from .axis import Axis
-from .binning import FullBinsArg, expand_bins_arg, histogram2d, process_bin_args
-from .util import FloatLike, ValueRange, partial_first, partial_second
+from .binning import (
+    FullBinsArg,
+    calc_value_range,
+    expand_bins_arg,
+    histogram2d,
+    segment_interval,
+)
+from .util import FloatLike, ValueRange, make_decimal, partial_first, partial_second
 
 BareSmoothingFunc = Callable[[FloatLike, FloatLike], FloatLike]
 
@@ -238,7 +244,7 @@ def smooth_to_bins(
     x_centers: Sequence[FloatLike],
     y_centers: Sequence[FloatLike],
 ) -> Sequence[Sequence[float]]:
-    """Bin points into a 2-D histogram given bin edges
+    """Generate smoothed/density values over a grid, given data points and a kernel
 
     Parameters
     ----------
@@ -275,10 +281,16 @@ def smooth_to_bins(
     return out
 
 
+def pad_range(range_unpadded: ValueRange, padding: FloatLike):
+    """Add padding to both sides of a ValueRange"""
+    range_padding = make_decimal(padding)
+    return ValueRange(range_unpadded.min - range_padding, range_unpadded.max + range_padding)
+
+
 def smooth2d(
     points: Sequence[tuple[FloatLike, FloatLike]],
     kernel: SmoothingFunc,
-    bins: FullBinsArg = 10,
+    bins: FullBinsArg = None,
     ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
     align=True,
     **axis_args,
@@ -295,29 +307,45 @@ def smooth2d(
                 (int,int): number of columns (X), rows (Y)
                 list[float]: Column/Row centers
                 (list[float], list[float]): column centers for X, column centers for Y
+                Default: binning.DEFAULT_NUM_BINS
     ranges: Optional (ValueRange, ValueRange)
                 ((x_min, x_max), (y_min, y_max)) for the row/column centers if 'bins' is int
                 Default: take from data min/max, with buffer based on kernel width
     align: bool (default: True)
                 pick bin edges at 'round' values if # of bins is provided
-    drop_outside: bool (default: True)
-                True: Drop any data points outside the ranges
-                False: Put any outside points in closest bin (i.e. edge bins include outliers)
     axis_args: Extra arguments to pass through to Axis constructor
 
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    expanded_bins = expand_bins_arg(bins)
+    _, num_bins, bin_centers = expand_bins_arg(bins)
 
-    if isinstance(expanded_bins[0], Sequence):
-        # we were given the bin centers, so just use them
-        padding: tuple[FloatLike, FloatLike] = (0, 0)
+    if bin_centers and ranges:
+        # First and last bin centers imply a range, which may be inconsistent
+        # with the passed-in ranges. Only supply one or the other.
+        raise ValueError("Both 'ranges' and bin centers provided")
+
+    if bin_centers:
+        x_centers, y_centers = bin_centers
     else:
-        # we're computing the bin centers, so include some padding based on kernel width
+        # No centers, just number of bins, and maybe user-specified ranges
+        if ranges:
+            x_range, y_range = ranges
+        else:
+            x_range, y_range = None, None
+        # if we use a range based on the min/max of the data, we also
+        # include some padding based on the half-width of the kernel
         padding = func_width_half_height(kernel)
+        if not x_range:
+            x_range = calc_value_range(tuple(x for x, _ in points))
+            x_range = pad_range(x_range, padding[0])
+        if not y_range:
+            y_range = calc_value_range(tuple(y for _, y in points))
+            y_range = pad_range(y_range, padding[1])
 
-    x_centers, y_centers = process_bin_args(points, expanded_bins, ranges, align, padding)
+        x_centers = segment_interval(num_bins[0], x_range, align)
+        y_centers = segment_interval(num_bins[1], y_range, align)
+
     x_axis = Axis((x_centers[0], x_centers[-1]), values_are_edges=False, **axis_args)
     y_axis = Axis((y_centers[0], y_centers[-1]), values_are_edges=False, **axis_args)
 

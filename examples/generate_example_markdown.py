@@ -25,7 +25,7 @@ with open(os.path.join(docs_dir, "examples.md"), "wt") as outfile:
             printing = False
             for line in infile.readlines():
                 if not title:
-                    title = "#### " + line[1:]  # remove leading '#' from initial comment line
+                    title = "## " + line[1:]  # remove leading '#' from initial comment line
                     outfile.write(title)
                 elif "START" in line:
                     printing = True
