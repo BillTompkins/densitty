@@ -118,6 +118,12 @@ def test_hist2d_invalid_args(data):
         binning.histogram2d(data, bins=[1, range(10)], ranges=((0, 10), (0, 10)))
 
 
+def test_bin_edges_and_ranges_raises(data):
+    """Specifying both bin edges and ranges is overconstrained"""
+    with pytest.raises(ValueError):
+        binning.histogram2d(data, bins=(range(12), range(12)), ranges=((0, 10), (0, 10)))
+
+
 def test_bin_data_1(data):
     """provide bin sizes"""
     binned = binning.histogram2d(data, ranges=((1, 10), (1, 10)), bin_size=(1, 1))
@@ -143,6 +149,36 @@ def test_bin_data_unaligned(data):
     """Don't require bin edges to be aligned"""
     binned = binning.histogram2d(data, ranges=((0.5, 10), (0.5, 10)), bin_size=(1, 1), align=False)
     golden.check(binned)
+
+
+def test_bins_and_bin_size_aligned(data):
+    """Both number of bins and bin size specified, with alignment"""
+    binned = binning.histogram2d(data, bins=9, bin_size=1)
+    golden.check(binned)
+
+
+def test_bins_and_bin_size_unaligned(data):
+    """Both number of bins and bin size specified, without alignment"""
+    binned = binning.histogram2d(data, bins=9, bin_size=1, align=False)
+    golden.check(binned)
+
+
+def test_bins_and_bin_size_tuples(data):
+    """Both bins and bin_size as tuples with different X/Y values"""
+    binned = binning.histogram2d(data, bins=(5, 9), bin_size=(2, 1))
+    golden.check(binned)
+
+
+def test_bins_and_bin_size_fractional(data):
+    """Both number of bins and a fractional bin size"""
+    binned = binning.histogram2d(data, bins=18, bin_size=0.5)
+    golden.check(binned)
+
+
+def test_bins_and_bin_size_with_range_raises(data):
+    """Specifying bins + bin_size + ranges is overconstrained"""
+    with pytest.raises(ValueError):
+        binning.histogram2d(data, bins=9, bin_size=1, ranges=((0, 10), (0, 10)))
 
 
 if __name__ == "__main__":

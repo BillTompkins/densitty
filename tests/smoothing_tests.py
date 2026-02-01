@@ -1,5 +1,4 @@
 import argparse
-import pytest
 import random
 import sys
 
@@ -7,19 +6,11 @@ from densitty import detect, Plot, smoothing
 import golden
 
 
-@pytest.fixture
-def data():
-    """Distribution of points for test"""
-    random.seed(1)
-    points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
-    return points
-
-
-def test_smooth_data_1(data):
+def test_smooth_data_1(points):
     """provide centers"""
     ctrs = tuple(x - 10 for x in range(21))
     smoothed, x_axis, y_axis = smoothing.smooth2d(
-        data, smoothing.triangle(2, 2), bins=(ctrs, ctrs)
+        points, smoothing.triangle(2, 2), bins=(ctrs, ctrs)
     )
     Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(x_axis, "test_smooth_data_1_x_axis")
@@ -27,10 +18,10 @@ def test_smooth_data_1(data):
     golden.check(smoothed)
 
 
-def test_smooth_data_2(data):
+def test_smooth_data_2(points):
     """provide number of centers and ranges"""
     smoothed, x_axis, y_axis = smoothing.smooth2d(
-        data, smoothing.triangle(2, 2), bins=(80, 80), ranges=((1, 10), (1, 10))
+        points, smoothing.triangle(2, 2), bins=(80, 80), ranges=((1, 10), (1, 10))
     )
     Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(x_axis, "test_smooth_data_2_x_axis")
@@ -38,10 +29,10 @@ def test_smooth_data_2(data):
     golden.check(smoothed)
 
 
-def test_smooth_data_3(data):
+def test_smooth_data_3(points):
     """provide just the number of centers"""
     kernel = smoothing.gaussian_with_inv_cov([[2, 0], [0, 2]])
-    smoothed, x_axis, y_axis = smoothing.smooth2d(data, kernel, bins=(80, 80))
+    smoothed, x_axis, y_axis = smoothing.smooth2d(points, kernel, bins=(80, 80))
     Plot(smoothed, x_axis=x_axis, y_axis=y_axis).show()
     golden.check(x_axis, "test_smooth_data_3_x_axis")
     golden.check(y_axis, "test_smooth_data_3_y_axis")

@@ -4,15 +4,9 @@ import os
 import pytest
 
 
-from densitty import ansi, ascii_art, Axis, detect, lineart, Plot, plotting, truecolor
+from densitty import ansi, ascii_art, Axis, colorbar, detect, lineart, Plot, plotting, truecolor
 import gen_norm_data
 import golden
-
-mock_terminal_size = os.terminal_size((100, 48))
-
-
-def mock_get_terminal_size():
-    return mock_terminal_size
 
 
 def histlike():
@@ -75,16 +69,13 @@ def border_nonhist():
     return bordered()
 
 
-def test_simple_hist_toscreen(simple_hist, monkeypatch):
-    monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
-
+def test_simple_hist_toscreen(simple_hist, set_screensize):
     upscaled = copy.deepcopy(simple_hist).upscale()
     upscaled.show()
     golden.check(upscaled.as_strings())
 
 
-def test_border_nonhist_toscreen(border_nonhist, monkeypatch):
-    monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
+def test_border_nonhist_toscreen(border_nonhist, set_screensize):
     upscaled = copy.deepcopy(border_nonhist).upscale()
     upscaled.show()
     golden.check(upscaled.as_strings())
@@ -96,15 +87,13 @@ def test_maxsize_keepaspect(border_nonhist):
     golden.check(upscaled.as_strings())
 
 
-def test_maxsize_fitscreen(border_nonhist, monkeypatch):
-    monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
+def test_maxsize_fitscreen(border_nonhist, set_screensize):
     upscaled = copy.deepcopy(border_nonhist).upscale(max_expansion=(None, None))
     upscaled.show()
     golden.check(upscaled.as_strings())
 
 
-def test_maxsize_fitscreen_noaxes(border_nonhist, monkeypatch):
-    monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
+def test_maxsize_fitscreen_noaxes(border_nonhist, set_screensize):
     plt = copy.deepcopy(border_nonhist)
     plt.x_axis = None
     plt.y_axis = None
@@ -113,8 +102,7 @@ def test_maxsize_fitscreen_noaxes(border_nonhist, monkeypatch):
     golden.check(upscaled.as_strings())
 
 
-def test_maxsize_reservemargin(border_nonhist, monkeypatch):
-    monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
+def test_maxsize_reservemargin(border_nonhist, set_screensize):
     upscaled = copy.deepcopy(border_nonhist).upscale(
         max_size=(-30, -30), max_expansion=(None, None), keep_aspect_ratio=False
     )
@@ -127,6 +115,68 @@ def test_maxsize_set_default_size(border_nonhist):
     upscaled = copy.deepcopy(border_nonhist).upscale(
         max_size=-30, max_expansion=None, keep_aspect_ratio=False
     )
+    upscaled.show()
+    golden.check(upscaled.as_strings())
+
+
+def test_left_margin_no_axis():
+    """left_margin() returns 0 when there is no y_axis"""
+    data = [[1, 2, 3], [4, 5, 6]]
+    plt = Plot(data=data, color_map=ansi.GRAYSCALE)
+    assert plt.left_margin() == 0
+
+
+def test_left_margin_halfheight():
+    """left_margin() with y_axis in halfheight color mode"""
+    data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
+    y_axis = Axis((-1, 1), border_line=False, values_are_edges=True)
+    plt = Plot(data=data, color_map=truecolor.FADE_IN, y_axis=y_axis)
+    assert plt.is_halfheight()
+    margin = plt.left_margin()
+    assert margin > 0
+    golden.check(margin)
+
+
+def test_left_margin_non_halfheight():
+    """left_margin() with y_axis in non-halfheight (ASCII) mode"""
+    data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
+    y_axis = Axis((-1, 1), border_line=False, values_are_edges=True)
+    plt = Plot(data=data, color_map=ascii_art.DEFAULT, y_axis=y_axis)
+    assert not plt.is_halfheight()
+    margin = plt.left_margin()
+    assert margin > 0
+    golden.check(margin)
+
+
+def test_left_margin_with_border():
+    """left_margin() with bordered y_axis"""
+    data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)
+    y_axis = Axis((-1, 1), border_line=True, values_are_edges=True)
+    plt = Plot(data=data, color_map=truecolor.FADE_IN, y_axis=y_axis)
+    margin = plt.left_margin()
+    assert margin > 0
+    golden.check(margin)
+
+
+def test_upscale_with_glued_on_plot(set_screensize):
+    """upscale() also upscales a glued-on to_right Plot"""
+    plt = bordered()
+    colorbar.add_colorbar(plt)
+    assert isinstance(plt.to_right, Plot)
+    original_to_right_rows = len(plt.to_right.data)
+    upscaled = plt.upscale()
+    # The glued-on plot should have been upscaled in Y
+    assert len(upscaled.to_right.data) > original_to_right_rows
+    upscaled.show()
+    golden.check(upscaled.as_strings())
+
+
+def test_upscale_with_glued_on_plot_fixed_size(set_screensize):
+    """upscale() with glued-on plot at a fixed max_size"""
+    plt = histlike()
+    colorbar.add_colorbar(plt)
+    assert isinstance(plt.to_right, Plot)
+    upscaled = plt.upscale(max_size=(100, 40), keep_aspect_ratio=True)
     upscaled.show()
     golden.check(upscaled.as_strings())
 

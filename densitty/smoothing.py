@@ -63,43 +63,6 @@ def gaussian_with_sigmas(sigma_x, sigma_y) -> SmoothingFunc:
     return gaussian_with_inv_cov(inv_cov)
 
 
-def covariance(points: Sequence[tuple[FloatLike, FloatLike]]):
-    """Calculate the covariance matrix of a list of points"""
-    num = len(points)
-    xs = tuple(x for x, _ in points)
-    ys = tuple(y for _, y in points)
-    mean_x = sum(xs) / num
-    mean_y = sum(ys) / num
-    cov_xx = sum((x - mean_x) ** 2 for x in xs) / num
-    cov_yy = sum((y - mean_y) ** 2 for y in ys) / num
-    cov_xy = sum((x - mean_x) * (y - mean_y) for x, y in points) / num
-    return ((cov_xx, cov_xy), (cov_xy, cov_yy))
-
-
-def kde(points: Sequence[tuple[FloatLike, FloatLike]]):
-    """Kernel for Kernel Density Estimation
-    Note that the resulting smoothing function is quite broad, since the
-    covariance estimate converges very slowly.
-
-    This may make sense to use if the distribution of points is itself a
-    Gaussian, but makes much less sense if it has any internal structure,
-    as that will all get smoothed out.
-    """
-    # From Scott's rule / Silverman's factor: Bandwidth is n**(-1/6)
-    # That is to scale the std deviation (characteristic width)
-    # We're using the square of that: (co)variance, so scale by n**(-1/3)
-    # And invert to get something we can pass to the gaussian func
-    cov = covariance(points)
-    scale = len(points) ** (1 / 3)
-    scaled_det = scale * (cov[0][0] * cov[1][1] - cov[1][0] * cov[0][1])
-    inv_scaled_cov = (
-        (cov[1][1] / scaled_det, -cov[0][1] / scaled_det),
-        (-cov[1][0] / scaled_det, cov[0][0] / scaled_det),
-    )
-
-    return gaussian_with_inv_cov(inv_scaled_cov)
-
-
 def triangle(width_x, width_y) -> SmoothingFunc:
     """Produce a kernel function for a 2-D triangle with specified width/height
     This is much cheaper computationally than the Gaussian, and gives decent results.
