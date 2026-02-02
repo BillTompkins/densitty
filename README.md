@@ -1,5 +1,5 @@
 <h1 align="center">densitty</h1>
-<h2 align="center"> Terminal-based 2-D Histogram, Density Plots, and Heatmaps</h2>
+<h2 align="center">Terminal-based 2-D Histogram, Density Plots, and Heatmaps in Python</h2>
 
 Generate 2-D histograms (density plots, heat maps, eye diagrams) similar to [matplotlib's hist2d](https://matplotlib.org/stable/gallery/statistics/hist.html "hist2d"), but with output in the terminal, and no external dependencies.
 
