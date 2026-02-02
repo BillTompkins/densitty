@@ -7,8 +7,10 @@ Generate 2-D histograms (density plots, heat maps, eye diagrams) similar to [mat
 
 ## [Examples/Gallery](https://billtompkins.github.io/densitty/docs/examples.html)
 
-## [Sub-modules / Usage Notes](https://billtompkins.github.io/densitty/docs/usage.html)
+## [Usage Notes](https://billtompkins.github.io/densitty/docs/usage.html)
 
 ## [Color, Size, and Glyph Support](https://billtompkins.github.io/densitty/docs/terminal_support.html)
 
 ## [API](https://billtompkins.github.io/densitty/docs/api.html)
+
+## [GitHub](https://github.com/BillTompkins/densitty/tree/main)

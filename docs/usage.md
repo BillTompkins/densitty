@@ -1,4 +1,38 @@
-The main functions to use are included at the top level of the `densitty` module. These include the `histplot2d()`, `densityplot2d()`, `grid_heatmap()` and `plot()` helper functions from `detect.py` (see below), which are the simplest way to get some good-looking output. They leverage the other classes below to bin or smooth data, construct axes, and plot to the screen.
+## Top Level Functions and Constants
+These functions come from the sub-modules, but are exported at the top-level `densitty` module as the typical-case API, to provide nice output with a minimum of required code.
+Many of the functions will do terminal size detection, and color capability detection.
+
+### `histplot2d()`
+Generates a Plot object by binning given data points. Accepts number of bins / bin edges, optional bin sizes, etc.
+### `densityplot2d()`
+Generates a Plot object by smoothing given data points. Similar arguments to `histplot2d()`.
+### `grid_heatmap()`
+Generates a Plot object with cells colored by the provided values, with explicit column and row labels for the cells.
+### `plot()`
+Generates a Plot object with cells colored by the provided values, using terminal color detection to pick the appropriate RGB/256-color/16-color/ASCII colormap. Used by the above functions.
+### Colormaps
+For use with the above functions, colormap dictionaries mapping color support level to specific colormaps
+#### `GRAYSCALE`
+Ramp from black to white.
+#### `RAINBOW`
+Red->Orange->Yellow->Green->Blue->Violet
+#### `REV_RAINBOW`
+Reversed rainbow: Violet->Blue->Green->Yellow->Orange->Red
+#### `FADE_IN`
+Similar to `REV_RAINBOW`, but fading in from black at the low end.
+
+### `Axis`
+Class specifying (X or Y) axis parameters.
+### `Plot`
+Fundamental class used for producing 2-D plots.
+### `make_colorbar()`
+Given a `Plot` object, produce another `Plot` object that is a color scale, either horizontal or vertical.
+### `histogram2d()`
+Bin the provided points into a 2-D array (list of lists) based on the binning parameters.
+### `smooth2d()`
+Smooth the provided points into a 2-D array (list of lists) using the provided smoothing kernel.
+
+## Sub-Modules
 
 ### Plot class (`plotting.py`)
 This class (also included at the top level of the module) does the work of plotting the 2-D data. You can instantiate it directly  through the class constructor, or via a helper function (e.g. `histplot2d()`).
@@ -21,19 +55,16 @@ For terminals that don't support colors, or for that old-school look, `ascii_art
 `binning.py` provides utility functions to bin a list of (X,Y) values into a dataset suitable for plotting with the `Plot` class.
 `histogram2d()` is similar to Matplotlib's histogram2d: you can specify the number of bins, or the bin edges. Additionally/alternatively, you can specify the bin size.
 
+### Smoothing
+`smoothing.py` provide utility functions to smooth a list of (X,Y) values, using a provided smoothing function, into a dataset suitable for plotting with the `Plot` class.
+The file includes Gaussian and Triangular smoothing kernels.
+
 ### Terminal Capability Detection
 `detect.py` has utility routines to try to detect the current terminal's capabilities. These routines are leveraged in several helper functions:
 - `pick_colormap()` will pick between supplied colormaps based on the terminal's capabilities
 - `plot()` is a wrapper for the `Plot` class constructor that uses `pick_colormap()` to pick the appropriate colormap.
-- `histplot2d()` is a wrapper for `binning.histogram2d` together with a call to `plot()`
-- `densityplot2d()` is a wrapper for `smoothing.smooth2d` together with a call to `plot()`
+- `histplot2d()` is a wrapper for `binning.histogram2d()` together with a call to `plot()`
+- `densityplot2d()` is a wrapper for `smoothing.smooth2d()` together with a call to `plot()`
 - `grid_heatmap()` constructs labeled axes and calls `plot()`
 - The color maps used by these  helper functions are actually dicts mapping the level of color support to the optimal color map. Some of these dicts are provided in `detect.py` and at the top level, for ease of use.
-The helpers provide a simple mechanism to try to use the nicest colors supported by the current terminal. Here, pick between Truecolor grayscale (256 different possible grays), a 256-color grayscale (26 possible grays), or ASCII-art:
-```
-from densitty import GRAYSCALE, plot
-
-...
-
-plot(my_data, colors=GRAYSCALE, x_axis=my_x_axis, y_axis=my_y_axis)
-```
+The helpers provide a simple mechanism to try to use the nicest colors supported by the current terminal.
