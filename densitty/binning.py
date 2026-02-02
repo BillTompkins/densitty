@@ -12,18 +12,28 @@ from .util import clamp, make_decimal, make_value_range, most_round, round_up_is
 
 # Following MatPlotLib, the 'bins' argument for functions can be:
 #  int:                                             number of bins for both X and Y
-#  Sequence[FloatLike]:                             bin locations for both X and Y
+#  Sequence[FloatLike]:                             bin edges for both X and Y
 #  tuple(int, int):                                 number of bins for X, number of bins for Y
-#  tuple(Sequence[FloatLike], Sequence[FloatLike]): bin locations for X, bin locations for Y
+#  tuple(Sequence[FloatLike], Sequence[FloatLike]): bin edges for X, bin edges for Y
 
+CountArg = int
+EdgesArg = Sequence[FloatLike]
 # a type for the "for both X and Y" variants:
-SingleBinsArg = int | Sequence[FloatLike]
+SingleBinsArg = CountArg | EdgesArg
+
 # a type for the tuple (X,Y) variants:
-ExpandedBinsArg = tuple[int, int] | tuple[Sequence[FloatLike], Sequence[FloatLike]]
-FullBinsArg = SingleBinsArg | ExpandedBinsArg
+DoubleCountArg = tuple[CountArg, CountArg]
+DoubleEdgesArg = tuple[EdgesArg, EdgesArg]
+ExpandedBinsArg = DoubleCountArg | DoubleEdgesArg
+
+FullBinsArg = Optional[SingleBinsArg | ExpandedBinsArg]
+
+RangesArg = tuple[Optional[ValueRange], Optional[ValueRange]]
+
+DEFAULT_NUM_BINS = (10, 10)
 
 
-def bin_edges(
+def bin_by_edges(
     points: Sequence[tuple[FloatLike, FloatLike]],
     x_edges: Sequence[FloatLike],
     y_edges: Sequence[FloatLike],
@@ -62,13 +72,34 @@ def calc_value_range(values: Sequence[FloatLike]) -> ValueRange:
 
     # bins are closed on left and open on right: i.e. left_edge <= values < right_edge
     # so, the right-most bin edge needs to be larger than the largest data value:
-    max_value = max(values)
-    min_value = min(values)
-    data_value_range = make_value_range((min_value, max_value))
-    range_top = data_value_range.max + Decimal(
-        math.ulp(data_value_range.max)
-    )  # increase by smallest representable amount
-    return ValueRange(data_value_range.min, range_top)
+    min_value = make_decimal(min(values))
+    max_value = make_decimal(max(values))
+
+    range_top = max_value + Decimal(
+        math.ulp(max_value)
+    )  # increase by smallest float-representable amount
+    return ValueRange(min_value, range_top)
+
+
+def align_value_range(vr: ValueRange, alignment_arg: FloatLike) -> ValueRange:
+    """Shift the provided ValueRange up or down to the specified alignment.
+    up/down choice based on which will shift it less"""
+    alignment = make_decimal(alignment_arg)
+    width = vr.max - vr.min
+    aligned_min = math.floor(vr.min / alignment) * alignment
+    aligned_max = math.ceil(vr.max / alignment) * alignment
+    shift_for_min = vr.min - aligned_min  # how far down did 'min' get shifted?
+    shift_for_max = aligned_max - vr.max  # how far up did 'max' get shifted?
+    if shift_for_min < shift_for_max:
+        return ValueRange(aligned_min, aligned_min + width)
+    return ValueRange(aligned_max - width, aligned_max)
+
+
+def force_value_range_width(vr: ValueRange, width: FloatLike) -> ValueRange:
+    """Return a ValueRange with specified width, centered on an existing ValueRange"""
+    half_width = make_decimal(width) / 2
+    midpoint = (vr.max + vr.min) / 2
+    return ValueRange(midpoint - half_width, midpoint + half_width)
 
 
 def segment_interval(
@@ -126,13 +157,18 @@ def segment_interval(
     return tuple(v for v in stepped_values if v <= last_edge)
 
 
-def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
-    """Similar to range/np.arange, but includes "end" in the output if appropriate"""
+def edge_range(rng: ValueRange, step_arg: FloatLike, align: bool):
+    """Generator providing values containing range, by step.
+    The first value will be rng.min, or rng.min rounded down to nearest 'step'
+    The last value will be equal to or larger than rng.max"""
+
+    step = make_decimal(step_arg)  # turn into decimal if it isn't already
     if align:
-        v = math.floor(start / step) * step
+        v = math.floor(rng.min / step) * step
     else:
-        v = start
-    while v < end + step:
+        v = rng.min
+
+    while v < (rng.max + step).next_minus():
         if align:
             yield round(v / step) * step
         else:
@@ -140,157 +176,103 @@ def edge_range(start: Decimal, end: Decimal, step: Decimal, align: bool):
         v += step
 
 
-def bin_with_size(
-    points: Sequence[tuple[FloatLike, FloatLike]],
-    bin_sizes: FloatLike | tuple[FloatLike, FloatLike],
-    ranges: Optional[tuple[ValueRange, ValueRange]] = None,
-    align=True,
-    drop_outside=True,
-    **axis_args,
-) -> tuple[Sequence[Sequence[int]], Axis, Axis]:
-    """Bin points into a 2-D histogram, given bin sizes
+def make_edges(rng: ValueRange, step_arg: FloatLike, align: bool):
+    """Return the edges as from 'edge_range', as a tuple for convenience"""
+    return tuple(edge_range(rng, step_arg, align))
 
-    Parameters
-    ----------
-    points: Sequence of (X,Y) tuples: the points to bin
-    bin_sizes: float or tuple(float, float)
-                Size(s) of (X,Y) bins to partition into
-    ranges: Optional (ValueRange, ValueRange)
-                ((x_min, x_max), (y_min, y_max)) for the bins. Default: take from data.
-    align: bool (default: True)
-                Force bin edges to be at a multiple of the bin size
-    drop_outside: bool (default: True)
-                True: Drop any data points outside the ranges
-                False: Put any outside points in closest bin (i.e. edge bins include outliers)
-    axis_args: Extra arguments to pass through to Axis constructor
 
-    returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
+def expand_bins_arg(
+    bins: FullBinsArg,
+) -> tuple[bool, DoubleCountArg, Optional[DoubleEdgesArg]]:
+    """Deal with 'bins' that may be
+    - None
+    - an integer indicating number of bins
+    - a list of edges/centers for the bins
+    - a 2-tuple of either of those
+    Returns a 3-tuple:
+      - specified/not-default (bool),
+      - 2-tuple of number of bins,
+      - optional 2-tuple of lists of edges/centers
     """
-
-    if ranges is None:
-        x_range = calc_value_range(tuple(x for x, _ in points))
-        y_range = calc_value_range(tuple(y for _, y in points))
+    if bins is None:
+        return (False, DEFAULT_NUM_BINS, None)
+    if isinstance(bins, int):
+        num_bins = (bins, bins)
+        bin_positions = None
+    elif len(bins) > 2:
+        # we were given a single list of bin edges
+        num = len(bins) - 1
+        num_bins = (num, num)
+        bin_positions = (bins, bins)
     else:
-        x_range, y_range = make_value_range(ranges[0]), make_value_range(ranges[1])
-
-    if not isinstance(bin_sizes, tuple):
-        # given just a single bin size: replicate it for both axes:
-        bin_sizes = (bin_sizes, bin_sizes)
-
-    x_edges = tuple(edge_range(x_range.min, x_range.max, make_decimal(bin_sizes[0]), align))
-    y_edges = tuple(edge_range(y_range.min, y_range.max, make_decimal(bin_sizes[1]), align))
-
-    x_axis = Axis(x_range, values_are_edges=True, **axis_args)
-    y_axis = Axis(y_range, values_are_edges=True, **axis_args)
-
-    return (bin_edges(points, x_edges, y_edges, drop_outside=drop_outside), x_axis, y_axis)
+        if not isinstance(bins, tuple):
+            raise ValueError("Invalid 'bins' argument")
+        # we either have a tuple of int/int or Sequence/Sequence
+        if isinstance(bins[0], int):
+            num_bins = bins
+            bin_positions = None
+        else:
+            num_bins = (len(bins[0]) - 1, len(bins[1]) - 1)
+            bin_positions = bins
+    return True, num_bins, bin_positions
 
 
-def expand_bins_arg(bins: FullBinsArg) -> ExpandedBinsArg:
-    """Deal with 'bins' argument that is meant to apply to both axes"""
-    if isinstance(bins, int):
-        # we were given a single # of bins
-        return (bins, bins)
-
-    if len(bins) > 2:
-        # we were given a single list of bin edges: replicate it
-        return (bins, bins)
-
-    # Flagged by type-checker: 'bins' could conceivably be a Sequence of len 1 or 2
-    if not isinstance(bins, tuple):
-        raise ValueError("Invalid 'bins' argument")
-
-    # We got a tuple of int/int or of Sequence/Sequence: return it
-    return bins
+def expand_bin_size_arg(
+    bin_size: Optional[FloatLike | tuple[FloatLike, FloatLike]],
+) -> Optional[tuple[FloatLike, FloatLike]]:
+    """If bin_size arg is not a 2-tuple, replicate it into one"""
+    if bin_size is None:
+        return None
+    if isinstance(bin_size, tuple):
+        return bin_size
+    return (bin_size, bin_size)
 
 
-def bins_to_edges(bins: ExpandedBinsArg) -> ExpandedBinsArg:
-    """Number of edges = number of bins + 1. 'bins' argument may be # of bins,
-    or a collection of edges. Only add 1 in the former case.
-    """
-    if isinstance(bins[0], int):
-        return (bins[0] + 1, bins[1] + 1)
-    return bins
+def range_from_arg_or_data(range_arg, points):
+    """Return range arg if given, or calculate a range from the data"""
+    if range_arg:
+        return make_value_range(range_arg)
+    return calc_value_range(tuple(points))
 
 
-def find_range(points: Sequence[FloatLike], padding: FloatLike) -> ValueRange:
-    """Calculate a range if none is provided, then produce segment values"""
-
-    range_unpadded = calc_value_range(points)
-    range_padding = make_decimal(padding)
-    return ValueRange(range_unpadded.min - range_padding, range_unpadded.max + range_padding)
-
-
-def segment_one_dim_if_needed(
-    points: Sequence[FloatLike],
-    bins: int | Sequence[FloatLike],
-    out_range: Optional[ValueRange],
-    align: bool,
-    padding: FloatLike,
-) -> Sequence[FloatLike]:
-    """Helper function for processing 'bins' argument:
-    If 'bins' argument is a number of bins, find equally spaced values in the range.
-    If not given a range, compute it first.
-    """
-    if isinstance(bins, int):
-        # we were given the number of bins for X or Y. Calculate the edges/centers:
-        if out_range is None:
-            out_range = find_range(points, padding)
-        return segment_interval(bins, out_range, align)
-
-    # we were given the bin edges/centers already
-    if out_range is not None:
-        raise ValueError("Both bin edges and bin ranges provided, pick one or the other")
-    return bins
-
-
-def process_bin_args(
+def histogram2d(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     points: Sequence[tuple[FloatLike, FloatLike]],
-    bins: ExpandedBinsArg,
-    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]],
-    align: bool,
-    padding: tuple[FloatLike, FloatLike],
-) -> tuple[Sequence[FloatLike], Sequence[FloatLike]]:
-    """Utility function to process the various types that a 'bins' argument might be
-    bins, ranges, align: as for histogram2d
-    """
-
-    if ranges is None:
-        ranges = (None, None)
-
-    x_edges = segment_one_dim_if_needed(
-        tuple(x for x, _ in points), bins[0], ranges[0], align, padding[0]
-    )
-    y_edges = segment_one_dim_if_needed(
-        tuple(y for _, y in points), bins[1], ranges[1], align, padding[1]
-    )
-
-    return x_edges, y_edges
-
-
-def histogram2d(
-    points: Sequence[tuple[FloatLike, FloatLike]],
-    bins: FullBinsArg = 10,
-    ranges: Optional[tuple[Optional[ValueRange], Optional[ValueRange]]] = None,
+    bins: FullBinsArg = None,
+    ranges: Optional[RangesArg] = None,
+    bin_size: Optional[FloatLike | tuple[FloatLike, FloatLike]] = None,
     align=True,
     drop_outside=True,
     **axis_args,
 ) -> tuple[Sequence[Sequence[int]], Axis, Axis]:
-    """Bin points into a 2-D histogram, given number of bins, or bin edges
+    """Bin points into a 2-D histogram, given number of bins, bin edges, or bin sizes
+
+    Parameters can be combined in the following ways:
+    - bin_size with optional ranges
+    - bins (as edges) with no ranges
+    - bins (as count) with optional ranges
+    - bins (as count) + bin_size with no ranges: Fixed number and size of bins, centered on data
 
     Parameters
     ----------
     points: Sequence of (X,Y) tuples: the points to bin
-    bins: int or (int, int) or [float,...] or ([float,...], [float,...])
-                int: number of bins for both X & Y (default: 10)
+    bins: int or (int, int) or [float,...] or ([float,...], [float,...]) or None
+                int: number of bins for both X & Y
                 (int,int): number of bins in X, number of bins in Y
                 list[float]: bin edges for both X & Y
                 (list[float], list[float]): bin edges for X, bin edges for Y
+                None: defaults to DEFAULT_NUM_BINS if bin_size is not provided
     ranges: Optional (ValueRange, ValueRange)
                 ((x_min, x_max), (y_min, y_max)) for the bins if # of bins is provided
-                Default: take from data.
+                Cannot be specified with bins (as count) + bin_size, or bins (as edges)
+                Default if allowed: take from data
+    bin_size: Optional float or (float, float)
+                Size(s) of (X,Y) bins to partition into.
+                Cannot be combined with bins (as edges) since edge spacing already determines size.
+                float: bin size for both X & Y
+                (float, float): bin size for X, bin size for Y
     align: bool (default: True)
-                pick bin edges at 'round' values if # of bins is provided
+                pick bin edges at 'round' values if # of bins is provided, or force bin edges
+                to be at multiples of bin_size if bin_size is provided
     drop_outside: bool (default: True)
                 True: Drop any data points outside the ranges
                 False: Put any outside points in closest bin (i.e. edge bins include outliers)
@@ -299,11 +281,45 @@ def histogram2d(
     returns: Sequence[Sequence[int]], (x-)Axis, (y-)Axis
     """
 
-    expanded_bins = bins_to_edges(expand_bins_arg(bins))
+    bins_specified, num_bins, bin_edges = expand_bins_arg(bins)
 
-    x_edges, y_edges = process_bin_args(points, expanded_bins, ranges, align, (0, 0))
+    bin_sizes = expand_bin_size_arg(bin_size)
+    if ranges is None:
+        ranges = (None, None)
+
+    if bin_edges and any(ranges):
+        raise ValueError("Cannot specify both bin edges and plot range")
+    if bins_specified and bin_sizes and any(ranges):
+        # The number of bins and bin size imply a size of plot range, so this
+        # is overconstrained.
+        raise ValueError("Cannot specify number of bins and bin size and plot range")
+
+    x_range = range_from_arg_or_data(ranges[0], (x for x, _ in points))
+    y_range = range_from_arg_or_data(ranges[1], (y for _, y in points))
+
+    if bins_specified and bin_sizes:
+        # range width must be num_bins * bin_sizes, so take the data's range
+        # and force the width, aligning as needed
+        x_range = force_value_range_width(x_range, num_bins[0] * bin_sizes[0])
+        if align:
+            x_range = align_value_range(x_range, bin_sizes[0])
+
+        y_range = force_value_range_width(y_range, num_bins[1] * bin_sizes[1])
+        if align:
+            y_range = align_value_range(y_range, bin_sizes[1])
+
+    # Handle different parameter combinations
+    if bin_edges:
+        x_edges, y_edges = bin_edges
+    else:
+        if bin_sizes:
+            x_edges = make_edges(x_range, bin_sizes[0], align)
+            y_edges = make_edges(y_range, bin_sizes[1], align)
+        else:
+            # Only number of bins provided, if that
+            x_edges = segment_interval(num_bins[0] + 1, x_range, align)
+            y_edges = segment_interval(num_bins[1] + 1, y_range, align)
 
     x_axis = Axis((x_edges[0], x_edges[-1]), values_are_edges=True, **axis_args)
     y_axis = Axis((y_edges[0], y_edges[-1]), values_are_edges=True, **axis_args)
-
-    return (bin_edges(points, x_edges, y_edges, drop_outside), x_axis, y_axis)
+    return (bin_by_edges(points, x_edges, y_edges, drop_outside), x_axis, y_axis)

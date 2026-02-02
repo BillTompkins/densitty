@@ -1,35 +1,10 @@
-import os
 import pytest
-import random
 from unittest import mock
 
 from densitty import axis, binning, detect, smoothing
 
 import gen_norm_data
 import golden
-
-mock_terminal_size = os.terminal_size((100, 48))
-
-
-def mock_get_terminal_size():
-    return mock_terminal_size
-
-
-@pytest.fixture()
-def force_truecolor(monkeypatch):
-    monkeypatch.setenv("FORCE_COLOR", "3")
-
-
-@pytest.fixture()
-def set_screensize(monkeypatch):
-    monkeypatch.setattr(os, "get_terminal_size", mock_get_terminal_size)
-
-
-@pytest.fixture()
-def points():
-    """Example data"""
-    random.seed(1)
-    return [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
 
 
 def test_histplot2d_1(points, force_truecolor):
@@ -102,3 +77,41 @@ def test_detect_plot_with_bar(force_truecolor):
     )
     plt.show()
     golden.check(plt.as_strings())
+
+
+def test_grid_heatmap(force_truecolor, set_screensize):
+    import random
+
+    random.seed(1)
+    values = [[random.triangular(-2, 10, 1) for _ in range(10)] for _ in range(8)]
+    plt = detect.grid_heatmap(
+        values,
+        x_labels=[f"s{i}" for i in range(1, 11)],
+        y_labels=["Frogs", "Lizards", "Humans", "Antelope", "Bears", "Ants", "Penguins", "Sloths"],
+    )
+    plt.show()
+    golden.check(plt.as_strings())
+
+
+def test_grid_heatmap_custom_cell_size(force_truecolor, set_screensize):
+    data = [[1, 2, 3], [4, 5, 6]]
+    plt = detect.grid_heatmap(
+        data,
+        x_labels=["A", "B", "C"],
+        y_labels=["X", "Y"],
+        max_cell_size=8,
+    )
+    plt.show()
+    golden.check(plt.as_strings())
+
+
+def test_grid_heatmap_mismatched_y_labels():
+    data = [[1, 2], [3, 4]]
+    with pytest.raises(ValueError, match="Y labels"):
+        detect.grid_heatmap(data, x_labels=["A", "B"], y_labels=["X"])
+
+
+def test_grid_heatmap_mismatched_x_labels():
+    data = [[1, 2], [3, 4]]
+    with pytest.raises(ValueError, match="X labels"):
+        detect.grid_heatmap(data, x_labels=["A"], y_labels=["X", "Y"])

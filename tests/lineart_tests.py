@@ -7,12 +7,6 @@ from densitty import ansi, ascii_art, Axis, detect, lineart, Plot, plot, truecol
 import gen_norm_data
 import golden
 
-mock_terminal_size = os.terminal_size((100, 48))
-
-
-def mock_get_terminal_size():
-    return mock_terminal_size
-
 
 def histlike():
     data = gen_norm_data.gen_norm(num_rows=20, num_cols=20, width=0.3, height=0.15, angle=0.5)

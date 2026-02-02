@@ -51,27 +51,6 @@ Axis-generation support.
 
 # densitty.binning
 
-### densitty.binning.bin_with_size(points, bin_sizes, ranges, align, drop_outside, \*\*axis_args)
-
-Bin points into a 2-D histogram, given bin sizes
-
-- `points`: Sequence of (X,Y) tuples
-  - The points to bin
-- `bin_sizes`: float or tuple(float, float)
-  - Size(s) of (X,Y) bins to partition into
-  - If tuple: (x_bin_size, y_bin_size). If single number, the bin size in both directions
-- `ranges`: Optional (ValueRange, ValueRange)
-  - ((x_min, x_max), (y_min, y_max)) for the bins. Default: take from data.
-- `align`: bool (default: True)
-  - Force bin edges to be at a multiple of the bin size
-- `drop_outside`: bool (default: True)
-  - True: Drop any data points outside the ranges
-  - False: Put any outside points in closest bin (i.e. edge bins include outliers)
-- `axis_args`: Extra arguments to pass through to Axis constructor
-
-returns tuple: (Sequence[Sequence[int]], (x-)Axis, (y-)Axis)
-
-
 ### densitty.binning.histogram2d(points, bins, ranges, align, drop_outside, \*\*axis_args)
 
 Bin points into a 2-D histogram, given number of bins, or bin edges
@@ -83,16 +62,52 @@ Bin points into a 2-D histogram, given number of bins, or bin edges
   - If list[float]: bin edges for both X & Y
   - If (list[float], list[float]): bin edges for X, bin edges for Y
 - `ranges`: Optional (ValueRange, ValueRange)
-  - ((x_min, x_max), (y_min, y_max)) for the bins if # of bins is provided
+  - ((x_min, x_max), (y_min, y_max)) for the bins
   - If None (default): take from data.
+- `bin_sizes`: float or tuple(float, float)
+  - Size(s) of (X,Y) bins to partition into
+  - If tuple: (x_bin_size, y_bin_size). If single number, the bin size in both directions
 - `align`: bool (default: True)
-  - Pick bin edges at ‘round’ values if # of bins is provided
+  - Pick bin edges at ‘round’ values
 - `drop_outside`: bool
   - True (default): Drop any data points outside the ranges
   - False: Put any outside points in closest bin (i.e. edge bins include outliers)
 - `axis_args`: Extra arguments to pass through to Axis constructor
 
 returns tuple: (Sequence[Sequence[int]], (x-)Axis, (y-)Axis)
+
+# densitty.smoothing
+
+Support for smoothing pointwise data for a density map.
+
+### densitty.smoothing.gaussian_with_inv_cov(inv_cov)
+
+Produce a Gaussian (normal) smoothing kernel, given an inverse covariance matrix
+
+### densitty.smoothing.gaussian_with_sigmas(sigma_x, sigma_y)
+
+Produce a Gaussian (normal) smoothing kernel, given widths in X and Y
+
+### densitty.smoothing.triangle(width_x, width_y)
+
+Produce a triangular smoothing kernel with given widths
+
+### densitty.smoothing.smooth2d(points, kernel, bins, ranges, align, \*\*axis_args)
+- `points`: Sequence of (X,Y) tuples
+   - The data points to be smoothed
+- `kernel`: SmoothingFunc
+   - The kernel to use for smoothing
+- `bins`: int or (int, int) or [float,…] or ([float,…], [float,…])
+  - If int: number of output rows & columns (default: 10)
+  - If (int,int): number of columns, number of rows
+  - If list[float]: column (x) & row (y) coordinate values
+  - If (list[float], list[float]): column (x) coordinate values, row (y) coordinate values
+- `ranges`: Optional (ValueRange, ValueRange)
+   - ((x_min, x_max), (y_min, y_max)) for the columns/rows
+   - If None (default): take from data.
+- `align`: bool (default: True)
+   - Pick column/row centers at ‘round’ values
+- `axis_args`: Extra arguments to pass through to Axis constructor
 
 
 # densitty.detect module
@@ -135,8 +150,12 @@ Some dicts mapping ColorSupport level to [Color Maps](#color-maps) are provided:
 Maps to Truecolor / 256-color Grayscale, or to ASCII-Art
 #### detect.FADE_IN
 Maps to appropriate TrueColor/256-Color/16-color FADE_IN (Black -> Purple -> Blue -> Green -> Yellow -> Orange -> Red), or ASCII-art.
+#### detect.REV_RAINBOW
+Maps to appropriate TrueColor/256-Color/16-color REV_RAINBOW (Purple -> Blue -> Green -> Yellow -> Orange -> Red), or ASCII-art.
 
 ### densitty.detect.histplot2d(points, bins, ranges, align, drop_outside, colors, border_line, fractional_tick_pos, scale, \*\*plotargs)
+Also exported as `densitty.histplot2d()`
+
 Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting
 
 - `points`: Sequence of (X,Y) tuples
@@ -149,6 +168,9 @@ Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting
 - `ranges`: Optional (ValueRange, ValueRange)
   - ((x_min, x_max), (y_min, y_max)) for the bins if # of bins is provided
   - If None (default): take from data.
+- `bin_sizes`: float or tuple(float, float)
+  - Size(s) of (X,Y) bins to partition into
+  - If tuple: (x_bin_size, y_bin_size). If single number, the bin size in both directions
 - `align`: bool (default: True)
   - Pick bin edges at ‘round’ values if # of bins is provided
 - `drop_outside`: bool
@@ -164,6 +186,42 @@ Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting
   - Integer: Upscale with specified max scaling
 - `plotargs`
   - Extra arguments to pass to `Plot` constructor.
+
+### densitty.detect.densityplot2d(points, kernel, bins, ranges, align, \*\*axis_args)
+Also exported as `densitty.densityplot2d()`
+
+Wrapper for smoothing.smooth2d / plot.Plot to simplify 2-D histogram plotting
+- `points`: Sequence of (X,Y) tuples
+   - The data points to be smoothed
+- `kernel`: SmoothingFunc
+   - The kernel to use for smoothing
+- `bins`: int or (int, int) or [float,…] or ([float,…], [float,…])
+  - If int: number of output rows & columns (default: 10)
+  - If (int,int): number of columns, number of rows
+  - If list[float]: column (x) & row (y) coordinate values
+  - If (list[float], list[float]): column (x) coordinate values, row (y) coordinate values
+- `ranges`: Optional (ValueRange, ValueRange)
+   - ((x_min, x_max), (y_min, y_max)) for the columns/rows
+   - If None (default): take from data.
+- `align`: bool (default: True)
+   - Pick column/row centers at ‘round’ values
+- `colors`: dict
+   - Dict mapping ColorSupport -> Colormap (Default: [FADE_IN](#detectfade_in))
+ - `border_line`: Include a line along the axis in the output. Default True
+ - `fractional_tick_pos`: Use various characters to indicate where an axis tick is, rather than just "-" or "\|". Default False
+- `plotargs`: Extra arguments to pass through to plot function
+
+### densitty.detect.grid_heatmap(data, x_labels, y_labels, colors, max_cell_size, \*\*plotargs)
+Also exported as `densitty.grid_heatmap()`
+
+Create a grid-style heatmap, with user-provided labels for each column and row.
+- `data`: Two-dimensional values (e.g. list of lists of floats)
+- `x_labels`: list of strings
+- `y_labels`: list of strings
+- `colors`: dict mapping color support level to colormap. (default `REV_RAINBOW`)
+- `max_cell_size`: int
+  - maximum size of output cells. (default based on X label lengths)
+- `plotargs`: Extra arguments to pass through to plot function
 
 ### densitty.detect.pick_colormap(maps)
 
