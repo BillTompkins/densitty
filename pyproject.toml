@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "densitty"
-version = "0.9.0"
+version = "1.0.0"
 description = "densitty - create textual 2-D density plots, heatmaps, and 2-D histograms in Python"
 authors = [{ name = "Bill Tompkins" }]
 readme = "README.md"
@@ -13,7 +13,7 @@ keywords = ["densitty", "ascii", "ascii-art", "plotting", "terminal", "Python"]
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Operating System :: OS Independent",
     "Intended Audience :: Developers",
