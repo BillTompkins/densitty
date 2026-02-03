@@ -12,13 +12,13 @@ Generates a Plot object with cells colored by the provided values, with explicit
 Generates a Plot object with cells colored by the provided values, using terminal color detection to pick the appropriate RGB/256-color/16-color/ASCII colormap. Used by the above functions.
 ### Colormaps
 For use with the above functions, colormap dictionaries mapping color support level to specific colormaps
-#### `GRAYSCALE`
+##### `GRAYSCALE`
 Ramp from black to white.
-#### `RAINBOW`
+##### `RAINBOW`
 Red->Orange->Yellow->Green->Blue->Violet
-#### `REV_RAINBOW`
+##### `REV_RAINBOW`
 Reversed rainbow: Violet->Blue->Green->Yellow->Orange->Red
-#### `FADE_IN`
+##### `FADE_IN`
 Similar to `REV_RAINBOW`, but fading in from black at the low end.
 
 ### `Axis`
