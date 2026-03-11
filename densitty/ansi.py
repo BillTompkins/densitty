@@ -6,7 +6,7 @@
 
 from typing import Optional, Sequence
 
-from .util import nearest
+from .util import quantize
 
 RESET = "\033[0m"
 
@@ -24,6 +24,8 @@ def colormap_16(colors):
             Ordered 16-color ANSI colors corresponding to the 0.0..1.0 range
     """
 
+    count = len(colors)
+
     def as_colorcodes(bg_frac: Optional[float], fg_frac: Optional[float]) -> str:
         """Return ANSI color code for 16-color value(s)
         Parameters
@@ -35,9 +37,9 @@ def colormap_16(colors):
         """
         codes = []
         if fg_frac is not None:
-            codes += [f"{30 + nearest(colors, fg_frac)}"]
+            codes += [f"{30 + colors[quantize(fg_frac, count)]}"]
         if bg_frac is not None:
-            codes += [f"{40 + nearest(colors, bg_frac)}"]
+            codes += [f"{40 + colors[quantize(bg_frac, count)]}"]
         return compose(codes)
 
     return as_colorcodes
@@ -51,6 +53,8 @@ def colormap_256(colors):
             Ordered 256-color ANSI colors corresponding to the 0.0..1.0 range
     """
 
+    count = len(colors)
+
     def as_colorcodes(bg_frac: Optional[float], fg_frac: Optional[float]):
         """Return ANSI color code for 256-color value(s)
         Parameters
@@ -62,10 +66,10 @@ def colormap_256(colors):
         """
         codes = []
         if fg_frac is not None:
-            fg = nearest(colors, fg_frac)
+            fg = colors[quantize(fg_frac, count)]
             codes += [f"38;5;{fg}"]
         if bg_frac is not None:
-            bg = nearest(colors, bg_frac)
+            bg = colors[quantize(bg_frac, count)]
             codes += [f"48;5;{bg}"]
         return compose(codes)
 

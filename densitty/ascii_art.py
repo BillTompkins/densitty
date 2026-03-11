@@ -2,14 +2,15 @@
 
 from typing import Callable, Sequence
 
-from .util import nearest
+from .util import quantize
 
 
 def color_map(values: Sequence[str]) -> Callable:
     """Returns the closest ascii-art pixel."""
+    count = len(values)
 
     def compute_pixel_value(frac: float, _=None) -> str:
-        return nearest(values, frac)
+        return values[quantize(frac, count)]
 
     return compute_pixel_value
 

@@ -29,6 +29,12 @@ def clamp(x, min_x, max_x):
     return max(min_x, min(max_x, x))
 
 
+def quantize(x: float, count: int):
+    """Given a value in 0..1.0, return the corresponding integer in range 0..count-1"""
+    idx = math.floor(x * count)
+    return clamp(idx, 0, count - 1)
+
+
 def clamp_rgb(rgb):
     """Returns closest valid RGB value"""
     return tuple(clamp(round(x), 0, 255) for x in rgb)

@@ -6,7 +6,7 @@ import math
 from typing import Optional, Sequence
 
 from . import ansi
-from .util import clamp, clamp_rgb, interp, Vec
+from .util import clamp, clamp_rgb, interp, quantize, Vec
 
 # Note: by default, we usethe widely supported 38;2;R;G;B to set foreground color
 # An alternate spec is ODA which is 38:2::R:G:B (NB: colons rather than semicolons).
@@ -104,6 +104,8 @@ def colormap_24b(color_points: Sequence[Vec], num_output_colors=256, interp_in_r
     interp_in_rgb: bool
                   Interpolate in RGB space rather than Lab space
     """
+    count = num_output_colors
+
     # create the color map by interpolating between the given color points
     if interp_in_rgb:
         scale = tuple(
@@ -120,13 +122,13 @@ def colormap_24b(color_points: Sequence[Vec], num_output_colors=256, interp_in_r
     def colorcode(bg_frac: Optional[float], fg_frac: Optional[float]):
         codes = []
         if fg_frac is not None:
-            fg_idx = clamp(round(fg_frac * num_output_colors), 0, num_output_colors - 1)
+            fg_idx = quantize(fg_frac, count)
             if use_oda_colorcodes:
                 codes += [f"38:2::{scale[fg_idx][0]}:{scale[fg_idx][1]}:{scale[fg_idx][2]}"]
             else:
                 codes += [f"38;2;{scale[fg_idx][0]};{scale[fg_idx][1]};{scale[fg_idx][2]}"]
         if bg_frac is not None:
-            bg_idx = clamp(round(bg_frac * num_output_colors), 0, num_output_colors - 1)
+            bg_idx = quantize(bg_frac, count)
             if use_oda_colorcodes:
                 codes += [f"48:2::{scale[bg_idx][0]}:{scale[bg_idx][1]}:{scale[bg_idx][2]}"]
             else:
