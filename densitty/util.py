@@ -8,13 +8,13 @@ import typing
 from bisect import bisect_left
 from decimal import BasicContext, Decimal, DecimalTuple
 from fractions import Fraction
+from itertools import islice
 from typing import Any, Callable, NamedTuple, Sequence
 
-# FloatLike and Vec are defined in the stubs file util.pyi for type checking
+# FloatLike is defined in the stubs file util.pyi for type checking
 # At runtime, define as Any so older Python versions don't choke:
 if not typing.TYPE_CHECKING:
     FloatLike = Any
-    Vec = Any
 
 
 class ValueRange(NamedTuple):
@@ -22,6 +22,13 @@ class ValueRange(NamedTuple):
 
     min: Decimal
     max: Decimal
+
+
+def batched(iterable, n):
+    """Simplified backport of itertools.batched for Python <3.12"""
+    iterator = iter(iterable)
+    while batch := tuple(islice(iterator, n)):
+        yield batch
 
 
 def clamp(x, min_x, max_x):
@@ -33,54 +40,6 @@ def quantize(x: float, count: int):
     """Given a value in 0..1.0, return the corresponding integer in range 0..count-1"""
     idx = math.floor(x * count)
     return clamp(idx, 0, count - 1)
-
-
-def clamp_rgb(rgb):
-    """Returns closest valid RGB value"""
-    return tuple(clamp(round(x), 0, 255) for x in rgb)
-
-
-def interp(piecewise: Sequence[Vec], x: float) -> Vec:
-    """Evaluate a piecewise linear function, i.e. interpolate between the two closest values.
-    Parameters
-    ----------
-    piecewise: Sequence[Vec]
-               Evenly spaced function values. piecewise[0] := f(0.0), piecewise[-1] := f(1.0)
-    x:         float
-               value between 0.0 and 1.0
-    returns:   Vec
-               f(x)
-    """
-    max_idx = len(piecewise) - 1
-    float_idx = x * max_idx
-    lower_idx = math.floor(float_idx)
-
-    if lower_idx < 0:
-        return piecewise[0]
-    if lower_idx + 1 > max_idx:
-        return piecewise[-1]
-    frac = float_idx - lower_idx
-    lower_vec = piecewise[lower_idx]
-    upper_vec = piecewise[lower_idx + 1]
-    return tuple(lower * (1.0 - frac) + upper * frac for lower, upper in zip(lower_vec, upper_vec))
-
-
-def nearest(stepwise: Sequence, x: float):
-    """Given a list of function values, return the value closest to the specified point
-    Parameters
-    ----------
-    stepwise: Sequence[Any]
-              Evenly spaced function values. piecewise[0] := f(0.0), piecewise[-1] := f(1.0)
-    x:        float
-              value between 0.0 and 1.0
-    returns:  Any
-              f(x') for x' closest to x in the original sequence
-    """
-    max_idx = len(stepwise) - 1
-    idx = round(x * max_idx)
-
-    clamped_idx = clamp(idx, 0, max_idx)
-    return stepwise[clamped_idx]
 
 
 def make_decimal(x: FloatLike) -> Decimal:

@@ -16,13 +16,6 @@ def test_sfrexp10():
             assert 0.1 < f <= 1.0
 
 
-def test_interp():
-    """Test for interp function."""
-    assert util.interp([(0, 0, 0), (10, 100, 1000)], 0.5) == (5, 50, 500)
-    assert util.interp([(0, 0, 0), (10, 100, 1000)], -0.1) == (0, 0, 0)
-    assert util.interp([(0, 0, 0), (10, 100, 1000)], 1.1) == (10, 100, 1000)
-
-
 def test_sanitize_decimals():
     def decimalize(lst):
         return [Decimal(x) for x in lst]
