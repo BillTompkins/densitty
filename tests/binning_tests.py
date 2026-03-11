@@ -70,6 +70,7 @@ def test_binning_fixed_1(data):
 def test_binning_fixed_2(data):
     """no auto-adjust, with 45 bins, from 1..9.75(implicit)"""
     binned = binning.histogram2d(data, (36, 9), align=False)
+    detect.plot(binned[0], x_axis=binned[1], y_axis=binned[2]).show()
     golden.check(binned)
 
 
@@ -84,6 +85,7 @@ def test_binning_edge_2(data_to_edge):
     binned = binning.histogram2d(
         data_to_edge, (36, 9), ((1, 10), (1, 10)), align=False, drop_outside=False
     )
+    detect.plot(binned[0], x_axis=binned[1], y_axis=binned[2]).show()
     golden.check(binned)
 
 
