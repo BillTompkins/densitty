@@ -8,7 +8,7 @@ ramp_data = [[x * 0.1 - 1 for x in range(110)], [10 - x * 0.1 for x in range(110
 
 color_maps = [
     "truecolor.GRAYSCALE",
-    "truecolor.GRAYSCALE_LINEAR",
+    "truecolor.GRAYSCALE_FAST",
     "ansi.GRAYSCALE",
     "truecolor.BLUE_RED",
     "ansi.BLUE_RED",

@@ -3,10 +3,10 @@
 import operator
 import math
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, overload
 
 from . import ansi
-from .util import clamp, clamp_rgb, interp, quantize, Vec
+from .util import FloatLike, clamp, quantize
 
 # Note: by default, we usethe widely supported 38;2;R;G;B to set foreground color
 # An alternate spec is ODA which is 38:2::R:G:B (NB: colons rather than semicolons).
@@ -20,10 +20,81 @@ use_oda_colorcodes = False
 # Probably overkill: linear interpolation of RGB values gets muddy in the middle.
 #    Interpolating in CIE "L*a*b*" space typically gives much nicer results.
 
+# ANSI color codes will want RGB values in 0-255 range, Sixels want 0-100.
+# So our base RGB triples will be floats ranging 0.0..1.0
+
+# To keep the types distinct between LAB triples and RGB triples, we'll make them
+# separate types. Trying to use NewType type aliases for RGB/LAB/RGB255 confuses pylint
+# so here just use explicit classes, with likely a slight performance penalty.
+# And to make interpolation straightforward, define a simplistic
+# vector class that can do vector addition and scalar multiplication:
+
+
+class Vec(tuple[FloatLike, FloatLike, FloatLike]):
+    """Class for color component triples (RGB, LAB) to allow for interpolation"""
+
+    def __add__(self, other):
+        return Vec((x + y for x, y in zip(self, other)))
+
+    def __mul__(self, mult):
+        return Vec((x * mult for x in self))
+
+
+class RGB(Vec):
+    """R/G/B channels with float [0..1] in each"""
+
+
+class LAB(Vec):
+    """L*a*b* channels"""
+
+
+class RGB255(tuple[int, int, int]):
+    """R/G/B channels with 0-255 in each"""
+
+
+def rgb255(rgb: RGB) -> RGB255:
+    """Convert RGB to RGB255"""
+    return RGB255((round(rgb[0] * 255), round(rgb[1] * 255), round(rgb[2] * 255)))
+
+
+def clamp_rgb(rgb: RGB):
+    """Returns closest valid RGB value"""
+    return RGB(Vec(clamp(x, 0, 1.0) for x in rgb))
+
+
+@overload
+def interp(piecewise: Sequence[RGB], x: float) -> RGB: ...
+@overload
+def interp(piecewise: Sequence[LAB], x: float) -> LAB: ...
+
+
+def interp(piecewise: Sequence[Vec], x: float) -> Vec:
+    """Evaluate a piecewise linear function, i.e. interpolate between the two closest values.
+    Parameters
+    ----------
+    piecewise: Sequence[RGB] or Sequence[LAB]
+               Evenly spaced function values. piecewise[0] := f(0.0), piecewise[-1] := f(1.0)
+    x:         float
+               value between 0.0 and 1.0
+    returns:   RGB or LAB
+               f(x)
+    """
+    max_idx = len(piecewise) - 1
+    float_idx = x * max_idx
+    lower_idx = math.floor(float_idx)
+
+    if lower_idx < 0:
+        return piecewise[0]
+    if lower_idx + 1 > max_idx:
+        return piecewise[-1]
+    frac = float_idx - lower_idx
+    lower = piecewise[lower_idx]
+    upper = piecewise[lower_idx + 1]
+    return lower * (1.0 - frac) + upper * frac
+
 
 def _rgb_to_linear_rgb(channel):
     """Gamma correction: Convert RGB to 'linear' RGB with gamma of 2.4."""
-    channel = channel / 255.0
     if channel > 0.04045:
         return math.pow((channel + 0.055) / 1.055, 2.4)
     return channel / 12.92
@@ -32,8 +103,8 @@ def _rgb_to_linear_rgb(channel):
 def _linear_rgb_to_rgb(channel):
     """Inverse gamma correction: Convert 'linear' RGB back to RGB."""
     if channel > 0.0031308:
-        return clamp(round(255 * 1.055 * math.pow(channel, 1.0 / 2.4) - 0.055), 0, 255)
-    return clamp(round(255 * 12.92 * channel), 0, 255)
+        return clamp(1.055 * math.pow(channel, 1.0 / 2.4) - 0.055, 0, 1.0)
+    return clamp(12.92 * channel, 0, 1.0)
 
 
 def _vector_transform(v, m):
@@ -41,7 +112,7 @@ def _vector_transform(v, m):
     return [sum(map(operator.mul, v, col)) for col in m]
 
 
-def _rgb_to_lab(rgb: Vec) -> Vec:
+def _rgb_to_lab(rgb: RGB) -> LAB:
     """Convert RGB triple to CIE LAB triple."""
 
     linear_rgb = tuple(map(_rgb_to_linear_rgb, rgb))
@@ -64,10 +135,10 @@ def _rgb_to_lab(rgb: Vec) -> Vec:
     lum = 116 * fxyz[1] - 16
     a = 500 * (fxyz[0] - fxyz[1])
     b = 200 * (fxyz[1] - fxyz[2])
-    return (lum, a, b)
+    return LAB((lum, a, b))
 
 
-def _lab_to_rgb(lab: Vec) -> Vec:
+def _lab_to_rgb(lab: LAB) -> RGB:
     """Convert CIE LAB triple to RGB."""
 
     fy = (lab[0] + 16) / 116
@@ -90,84 +161,100 @@ def _lab_to_rgb(lab: Vec) -> Vec:
     linear_rgb = _vector_transform(xyzn, xyzn_to_linear_rgb)
 
     rgb = tuple(map(_linear_rgb_to_rgb, linear_rgb))
-    return rgb
+    return RGB(rgb)
 
 
-def colormap_24b(color_points: Sequence[Vec], num_output_colors=256, interp_in_rgb=False):
-    """Produce a function that returns ANSI colors interpolated from the provided sequence
-    Parameters
-    ----------
-    color_points: Sequence[Vec]
-                  Evenly-spaced color values corresponding to 0.0..1.0
-    num_output_colors: int
-                  Number of distinct interpolated output colors to use
-    interp_in_rgb: bool
-                  Interpolate in RGB space rather than Lab space
-    """
-    count = num_output_colors
-
-    # create the color map by interpolating between the given color points
+def expand_rgb_colormap(color_points: Sequence[RGB], num_output_colors=256, interp_in_rgb=False):
+    """Expand a list of RGB colors by interpolation"""
     if interp_in_rgb:
-        scale = tuple(
+        return tuple(
             clamp_rgb(interp(color_points, x / (num_output_colors - 1)))
             for x in range(num_output_colors)
         )
-    else:
-        lab_color_points = tuple(_rgb_to_lab(point) for point in color_points)
-        lab_scale = [
-            interp(lab_color_points, x / (num_output_colors - 1)) for x in range(num_output_colors)
-        ]
-        scale = tuple(clamp_rgb(_lab_to_rgb(point)) for point in lab_scale)
 
-    def colorcode(bg_frac: Optional[float], fg_frac: Optional[float]):
+    # Convert to CIE Lab, interpolate there, and convert back to RGB
+    lab_color_points = tuple(_rgb_to_lab(point) for point in color_points)
+    lab_scale = [
+        interp(lab_color_points, x / (num_output_colors - 1)) for x in range(num_output_colors)
+    ]
+    return tuple(clamp_rgb(_lab_to_rgb(point)) for point in lab_scale)
+
+
+class Colormap_24b:
+    """Can be called as if it were a function to produce ANSI codes, returning ANSI colors
+    interpolated from the provided sequence.
+    Can also be used as an RGB colormap for sixels.
+    """
+
+    # Sixel prep: multiple of 254 colors by default, and this:
+    # pylint: disable=too-few-public-methods
+
+    def __init__(
+        self, color_points: Sequence[RGB], num_output_colors=254 * 2, interp_in_rgb=False
+    ):
+        """
+        Parameters
+        ----------
+        color_points: Sequence[Vec]
+                      Evenly-spaced color values corresponding to 0.0..1.0
+        num_output_colors: int
+                      Number of distinct interpolated output colors to use
+                      Default: 254, to hit 256 when adding out-of-map foreground/background
+        interp_in_rgb: bool
+                      Interpolate in RGB space rather than Lab space
+        """
+        self.count = num_output_colors
+        self.scale = expand_rgb_colormap(color_points, num_output_colors, interp_in_rgb)
+
+    def __call__(self, bg_frac: Optional[float], fg_frac: Optional[float]):
+        """Using the colormap object as a function, so it can be used with Plot class"""
         codes = []
         if fg_frac is not None:
-            fg_idx = quantize(fg_frac, count)
+            fg_idx = quantize(fg_frac, self.count)
+            fg = rgb255(self.scale[fg_idx])
             if use_oda_colorcodes:
-                codes += [f"38:2::{scale[fg_idx][0]}:{scale[fg_idx][1]}:{scale[fg_idx][2]}"]
+                codes += [f"38:2::{fg[0]}:{fg[1]}:{fg[2]}"]
             else:
-                codes += [f"38;2;{scale[fg_idx][0]};{scale[fg_idx][1]};{scale[fg_idx][2]}"]
+                codes += [f"38;2;{fg[0]};{fg[1]};{fg[2]}"]
         if bg_frac is not None:
-            bg_idx = quantize(bg_frac, count)
+            bg_idx = quantize(bg_frac, self.count)
+            bg = rgb255(self.scale[bg_idx])
             if use_oda_colorcodes:
-                codes += [f"48:2::{scale[bg_idx][0]}:{scale[bg_idx][1]}:{scale[bg_idx][2]}"]
+                codes += [f"48:2::{bg[0]}:{bg[1]}:{bg[2]}"]
             else:
-                codes += [f"48;2;{scale[bg_idx][0]};{scale[bg_idx][1]};{scale[bg_idx][2]}"]
+                codes += [f"48;2;{bg[0]};{bg[1]};{bg[2]}"]
         return ansi.compose(codes)
-
-    return colorcode
 
 
 # RGB Color triples to use in making color scales:
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 255, 0)
-ORANGE = (255, 128, 0)
-CYAN = (0, 255, 255)
-PURPLE = (102, 0, 102)
-MAGENTA = (255, 0, 255)
-
+BLACK = RGB((0, 0, 0))
+WHITE = RGB((1.0, 1.0, 1.0))
+RED = RGB((1.0, 0, 0))
+GREEN = RGB((0, 1.0, 0))
+BLUE = RGB((0, 0, 1.0))
+YELLOW = RGB((1.0, 1.0, 0))
+ORANGE = RGB((1.0, 0.5, 0))
+CYAN = RGB((0, 1.0, 1.0))
+PURPLE = RGB((0.4, 0, 0.4))
+MAGENTA = RGB((1.0, 0, 1.0))
 
 # pylint: disable=invalid-name
-# (0,0,0), (1,1,1), (2,2,2)...(255,255,255):
-GRAYSCALE = colormap_24b([BLACK, WHITE], interp_in_rgb=True)
+# Black -> White, interpolating in RGB
+GRAYSCALE_FAST = Colormap_24b([BLACK, WHITE], interp_in_rgb=True)
 
 # More uniform gradation of lightness across the scale:
-GRAYSCALE_LINEAR = colormap_24b([BLACK, WHITE], num_output_colors=512)
+GRAYSCALE = Colormap_24b([BLACK, WHITE])
 
 # Blue->Red
-BLUE_RED = colormap_24b([BLUE, RED])
+BLUE_RED = Colormap_24b([BLUE, RED])
 
-RAINBOW = colormap_24b([RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, PURPLE])
+RAINBOW = Colormap_24b([RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, PURPLE])
 
-REV_RAINBOW = colormap_24b([PURPLE, BLUE, CYAN, GREEN, YELLOW, ORANGE, RED])
+REV_RAINBOW = Colormap_24b([PURPLE, BLUE, CYAN, GREEN, YELLOW, ORANGE, RED])
 
 # Starting from black, fade into reverse rainbow:
-FADE_IN = colormap_24b([BLACK, PURPLE, BLUE, CYAN, GREEN, YELLOW, ORANGE, RED])
+FADE_IN = Colormap_24b([BLACK, PURPLE, BLUE, CYAN, GREEN, YELLOW, ORANGE, RED])
 
-HOT = colormap_24b([BLACK, RED, ORANGE, YELLOW, WHITE])
+HOT = Colormap_24b([BLACK, RED, ORANGE, YELLOW, WHITE])
 
-COOL = colormap_24b([CYAN, MAGENTA])
+COOL = Colormap_24b([CYAN, MAGENTA])
