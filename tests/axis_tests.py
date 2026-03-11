@@ -84,7 +84,7 @@ ascii_combinations = itertools.product(
 
 
 @pytest.mark.parametrize("x_border,y_border,x_edges,y_edges", ascii_combinations)
-def test_axes_ascii(data, x_border, y_border, x_edges, y_edges):  # , request):
+def test_axes_ascii(data, x_border, y_border, x_edges, y_edges):
     """Combiniatorial check of axis options"""
     x_axis = Axis(ValueRange(-1, 1), border_line=x_border, values_are_edges=x_edges)
     y_axis = Axis(
@@ -102,6 +102,35 @@ def test_axes_ascii(data, x_border, y_border, x_edges, y_edges):  # , request):
     print(name)
     p.show()
     golden.check(p.as_strings(), name)
+
+
+pixel_combinations = tuple(
+    itertools.product(
+        [False, True],  # border line
+        [10, 17, 49, 50, 51],  # text rows/columns
+        [55, 75, 100, 500],  # pixel rows/columns
+    )
+)
+
+
+@pytest.mark.parametrize("border, num_text, num_pixels", pixel_combinations)
+def test_x_axis_pixels(data, border, num_text, num_pixels):
+    """Check pixel output"""
+    tick_size = 8
+    a = Axis(ValueRange(-1, 1), border_line=border, values_are_edges=True)
+    name = "test_x_axis_pixel-" + "-".join(str(x) for x in [border, num_text, num_pixels])
+    print(name)
+    golden.check(a.render_as_x_pixels(tick_size, num_text, num_pixels), name)
+
+
+@pytest.mark.parametrize("border, num_text, num_pixels", pixel_combinations)
+def test_y_axis_pixels(data, border, num_text, num_pixels):
+    """Check pixel output"""
+    tick_size = 8
+    a = Axis(ValueRange(-1, 1), border_line=border, values_are_edges=True)
+    name = "test_y_axis_pixel-" + "-".join(str(x) for x in [border, num_text, num_pixels])
+    print(name)
+    golden.check(a.render_as_y_pixels(tick_size, num_text, num_pixels), name)
 
 
 def test_axes_small():

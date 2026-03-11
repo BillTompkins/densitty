@@ -222,3 +222,9 @@ def roundness_ordered(values):
 def most_round(values):
     """Pick the most round of the input values."""
     return next(roundness_ordered(values))
+
+
+def first_non_none(values):
+    """Returns the first non-None value"""
+    all_non_none = (x for x in values if x is not None)
+    return next(all_non_none)

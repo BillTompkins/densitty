@@ -6,7 +6,7 @@ ramp_data = [[x * 0.1 for x in range(200)]]
 
 color_maps = [
     "truecolor.GRAYSCALE",
-    "truecolor.GRAYSCALE_LINEAR",
+    "truecolor.GRAYSCALE_FAST",
     "ansi.GRAYSCALE",
     "truecolor.BLUE_RED",
     "ansi.BLUE_RED",
@@ -25,7 +25,7 @@ color_maps = [
 color_maps = {
     "RGB maps in truecolor.py": {
         "GRAYSCALE": truecolor.GRAYSCALE,
-        "GRAYSCALE_LINEAR": truecolor.GRAYSCALE_LINEAR,  # RGB-interpolated rather than Lab
+        "GRAYSCALE_FAST": truecolor.GRAYSCALE_FAST,  # RGB-interpolated rather than Lab
         "BLUE_RED": truecolor.BLUE_RED,
         "RAINBOW": truecolor.RAINBOW,
         "REV_RAINBOW": truecolor.REV_RAINBOW,
