@@ -14,9 +14,10 @@ def histlike():
     y_axis = Axis((-1, 1), border_line=True, values_are_edges=True)
     x_axis = Axis((-1, 1), border_line=True, values_are_edges=True)
 
+    # use ascii-art to simplify diffs / make independent of color map tweaks
     my_plot = Plot(
         data=data,
-        color_map=truecolor.FADE_IN,
+        color_map=ascii_art.DEFAULT,
         y_axis=y_axis,
         x_axis=x_axis,
         min_data=-0.2,
@@ -42,7 +43,7 @@ def heatlike():
 
     my_plot = Plot(
         data=data,
-        color_map=truecolor.FADE_IN,
+        color_map=ascii_art.DEFAULT,
         y_axis=y_axis,
         x_axis=x_axis,
         min_data=-0.2,
@@ -60,15 +61,15 @@ def heat():
     return heatlike()
 
 
-def test_glyphs(hist):
+mappings = {"ascii": lineart.ascii_font, "basic": lineart.basic_font, "ext": lineart.extended_font}
+
+
+@pytest.mark.parametrize("mapping", mappings)
+def test_glyphs(hist, mapping):
     plot.default_terminal_size = os.terminal_size((100, 50))
-    for name, mapping in [
-        ("ascii", lineart.ascii_font),
-        ("basic", lineart.basic_font),
-        ("extended", lineart.extended_font),
-    ]:
-        hist.font_mapping = mapping
-        golden.check(hist.as_strings(), "simple_glyph_" + name)
+    hist.font_mapping = mappings[mapping]
+    hist.show()
+    golden.check(hist.as_strings(), "simple_glyph_" + mapping)
 
 
 def test_merge():
