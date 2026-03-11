@@ -46,26 +46,26 @@ class Plot:
         max_data = max(max(line) for line in self.data) if self.max_data is None else self.max_data
         return (min_data, max_data)
 
-    def as_ascii(self):
+    def data_as_ascii(self):
         """Output using direct characters (ASCII-art)."""
-        data = self._normalize_data()
-        for line in data:
+        output_data = self.conditioned_data()
+        for line in output_data:
             line_str = (self.color_map(x, None) for x in line)
             yield "".join(line_str)
 
-    def as_color(self):
+    def data_as_color(self):
         """Output using ANSI color codes for background, with space character."""
-        data = self._normalize_data()
-        for line in data:
+        output_data = self.conditioned_data()
+        for line in output_data:
             colors = (self.color_map(x, None) for x in line)
             yield (" ".join(chain(colors, [ansi.RESET])))
 
-    def as_halfheight_color(self):
+    def data_as_halfheight_color(self):
         """Output using ANSI color codes for foreground & background, with half-block character."""
-        data = self._normalize_data()
+        output_data = self.conditioned_data()
         half_block = "▄"  # Unicode U+2584 "Lower Half Block"
-        line_count = len(data)
-        lines = iter(data)
+        line_count = len(output_data)
+        lines = iter(output_data)
         if line_count % 2:
             # odd number of lines: special-case the first line:
             line = next(lines, [])
@@ -76,9 +76,9 @@ class Plot:
             colors = (self.color_map(x, y) for x, y in zip(bg_line, fg_line))
             yield (half_block.join(chain(colors, [ansi.RESET])))
 
-    def _normalize_data(self):
-        """Normalize data to 0..1 interval based on min_data/max_data or actual min/max.
-        Also flips data if requested
+    def conditioned_data(self):
+        """Normalize data to 0..1 interval based on min_data/max_data or actual min/max,
+        and optionally flip in Y direction
         """
 
         min_data, max_data = self.data_limits()
@@ -86,9 +86,8 @@ class Plot:
         if data_scale == 0:
             # all data has the same value (or we were told it does)
             data_scale = sys.float_info.min
-        norm_data = tuple(tuple((x - min_data) / data_scale for x in line) for line in self.data)
-
-        return tuple(reversed(norm_data)) if self.flip_y else norm_data
+        ordered_data = reversed(self.data) if self.flip_y else self.data
+        return tuple(tuple((x - min_data) / data_scale for x in line) for line in ordered_data)
 
     def is_color(self):
         """Is color_map returning color codes, not ASCII-art?"""
@@ -112,11 +111,11 @@ class Plot:
     def as_strings(self):
         """Scale data to 0..1 range and feed it through the appropriate output function"""
         if self.is_halfheight():
-            plot_lines = tuple(self.as_halfheight_color())
+            plot_lines = tuple(self.data_as_halfheight_color())
         elif self.is_color():
-            plot_lines = tuple(self.as_color())
+            plot_lines = tuple(self.data_as_color())
         else:
-            plot_lines = tuple(self.as_ascii())
+            plot_lines = tuple(self.data_as_ascii())
 
         num_rows = len(plot_lines)
         num_cols = len(self.data[0])

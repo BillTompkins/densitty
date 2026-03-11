@@ -25,9 +25,9 @@ my_plot = Plot(
 )
 my_plot.upscale(max_size=(100, 48)).show()
 
-x_axis.labels = {x_edges[0]: "first", x_edges[-1]: "last"}
+x_axis.user_labels = {x_edges[0]: "first", x_edges[-1]: "last"}
 my_plot.show()
 
-x_axis.labels = None
+x_axis.user_labels = None
 my_plot.y_axis = None
 my_plot.show()

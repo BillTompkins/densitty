@@ -13,9 +13,10 @@ import golden
 
 def gen_labels(value_range: util.ValueRange, num_bins: int):
     print(f"Given [{value_range.min}..{value_range.max}], {num_bins} bins")
-    y_labels = axis.gen_full_labels(value_range, num_bins, False, "{}")
+    a = axis.Axis(value_range)
+    y_labels = a.labels(num_bins, False)
     print(f"For Y: {y_labels}")
-    x_labels = axis.gen_full_labels(value_range, num_bins, False, "{}")
+    x_labels = a.labels(num_bins, True)
     print(f"For X: {x_labels}")
 
 
@@ -35,7 +36,7 @@ def gen_random_axis_values(num):
 # Values for pytest-based tests, with a fixed seed:
 random.seed(1)
 random_axis_values = tuple(gen_random_axis_values(100))
-# For X axis, add a 'tick_space' arg that takes both 0 and 1 values:
+# For X axis, add a 'fractional_ticks' arg that takes both 0 and 1 values:
 random_axis_values_half_spaced = tuple(r + (0,) for r in random_axis_values) + tuple(
     r + (1,) for r in random_axis_values
 )
@@ -50,41 +51,41 @@ def idfn(arg):
     return f"{arg}"
 
 
-@pytest.mark.parametrize("num_bins,value_range,tick_space", x_axis_values, ids=idfn)
-def test_x_axis(num_bins, value_range, tick_space):
-    print(f"{num_bins=} {value_range=} {tick_space=}")
-    x_labels = axis.gen_full_labels(value_range, num_bins, True, tick_space, "{}")
-    print(f"For X: {x_labels}")
-    # For evaluation of failing tests, generate & print an axis with these limits & labels:
+@pytest.mark.parametrize("num_bins,value_range,fractional_ticks", x_axis_values, ids=idfn)
+def test_x_axis(num_bins, value_range, fractional_ticks):
+    print(f"{num_bins=} {value_range=} {fractional_ticks=}")
     x_axis = axis.Axis(
         value_range,
-        labels=x_labels,
         border_line=False,
         values_are_edges=False,
-        fractional_tick_pos=(tick_space == 1),
+        fractional_tick_pos=fractional_ticks,
     )
+    # For evaluation of failing tests, print the labels alone, and as an axis
+    x_labels = x_axis.labels(num_bins, True)
+    print(f"For X: {x_labels}")
     for line in x_axis.render_as_x(num_bins, 4):
         print(line)
 
     # check the generated labels themselves
-    golden_name = f"x_axis_{num_bins}_{value_range.min}_{value_range.max}_{tick_space}"
+    golden_name = f"x_axis_{num_bins}_{value_range.min}_{value_range.max}_{fractional_ticks}"
     golden.check(x_labels, golden_name)
 
 
 @pytest.mark.parametrize("num_bins,value_range", random_axis_values, ids=idfn)
 def test_y_axis(num_bins, value_range):
     print(f"{num_bins=} {value_range=}")
-    y_labels = axis.gen_full_labels(value_range, num_bins, False, 0, "{}")
-    print(f"For Y: {y_labels}")
 
     # For evaluation of failing tests, generate & print an axis with these limits & labels:
     y_axis = axis.Axis(
         value_range,
-        labels=y_labels,
         border_line=False,
         values_are_edges=False,
         fractional_tick_pos=True,
     )
+    y_labels = y_axis.labels(num_bins, False)
+
+    # For evaluation of failing tests, print the labels alone, and as an axis
+    print(f"For Y: {y_labels}")
     for line in y_axis.render_as_y(num_bins, False, False, True):
         print(line)
 

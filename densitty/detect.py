@@ -58,26 +58,6 @@ class GlyphSupport(Flag):
     COMBINING = auto()  # Unicode "Combining Low Line" and "Combining Overline" for "│̲ │̅"
 
 
-def ansi_get_cursor_pos() -> tuple[int, int]:
-    """ANSI codes to read current cursor position"""
-    # Write ANSI escape "DSR": Device Status Report. Terminal will respond with position
-    sys.stdout.write("\x1b[6n")
-    sys.stdout.flush()
-    response = ""
-    for _ in range(1_000_000):
-        response += sys.stdin.read(1)
-        # Response should be of the form 'ESC[n;mR' where n and m are row/column
-        if response.endswith("R"):
-            break
-    else:
-        raise OSError("No ANSI response from terminal")
-    try:
-        n_str, m_str = response[2:-1].split(";")
-        return (int(m_str), int(n_str))
-    except ValueError as e:
-        raise OSError from e
-
-
 if sys.platform == "win32":
 
     def get_code_response(
@@ -154,6 +134,11 @@ def get_cursor_pos() -> tuple[int, int]:
         return (int(m_str), int(n_str))
     except ValueError as e:
         raise OSError from e
+
+
+def set_cursor_pos(col: int, row: int):
+    """Use CUP (Cursor Position) to set terminal's cursor position"""
+    print(f"\033[{row};{col}H", end="")
 
 
 # Fractional Y axis ticks with a border line will get rendered with Unicode combining characters
@@ -455,7 +440,7 @@ def plot(data, colors=FADE_IN, colorscale=False, **plotargs):
     """Wrapper for plot.Plot that picks colormap from dict
 
     Parameters
-     ----------
+    ----------
      data : Sequence[Sequence[float]]
             The data to be plotted.
      colors : Dict mapping color support to color map

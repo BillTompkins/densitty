@@ -9,6 +9,9 @@ from typing import Optional, Sequence
 from . import lineart, util
 from .util import FloatLike, ValueRange
 
+BG_IDX = 0  # background for pixel output
+FG_IDX = 1  # foreground for pixel output
+
 
 @dataclasses.dataclass
 class BorderChars:
@@ -87,7 +90,9 @@ def gen_tick_values(value_range, tick_step):
     """Produce tick values in the specified range. Basically numpy.arange"""
 
     tick = math.ceil(value_range.min / tick_step) * tick_step
-    while tick <= value_range.max:
+    # use Decimal.next_plus to accomodate rounding error/truncation
+    maximum = value_range.max.next_plus()
+    while tick <= maximum:
         yield tick
         tick += tick_step
 
@@ -137,6 +142,10 @@ def gen_position_subsets(positions: tuple, tick_step: Decimal) -> list[Sequence[
     For tick steps starting with 1 or 2: generates every-5th subsets (5 variants).
     For tick steps starting with 5: generates every-2nd subsets (2 variants).
     """
+    if len(positions) == 1:
+        # Only real subset is the position itself
+        return [positions]
+
     step_digit = tick_step.as_tuple().digits[0]  # leading digit of tick step: 1, 2, or 5
     # we want to pick different position subsets depending on whether we're advancing by
     # 1eX, 2eX, or 5eX:
@@ -152,6 +161,10 @@ def gen_position_subsets(positions: tuple, tick_step: Decimal) -> list[Sequence[
 
 def label_ends_only(positions, tick_step, bin_width, accomodate_values, fmt):
     """See if printing just the labels for the first and last ticks will fit"""
+
+    if len(positions) == 1:
+        # We don't even have two ends, just label the one position we have
+        return positions_to_labels(positions, [], fmt)
 
     if not accomodate_values:
         # For Y axis / we don't care about printed widths
@@ -189,47 +202,6 @@ def find_fitting_subset(position_subsets, ticks_per_bin, accomodate_values, fmt)
     return tuple()
 
 
-def gen_full_labels(value_range: ValueRange, num_bins, accomodate_values, tick_space, fmt):
-    """Generate positions for labels (plain ticks & ticks with value)"""
-    bin_width = (value_range.max - value_range.min) / num_bins
-
-    if bin_width <= 0:
-        # we don't have a sensible range for the axis values, so just have empty ticks
-        return {}
-
-    min_step = calc_min_step(value_range, bin_width, accomodate_values, tick_space, fmt)
-    cur_tick_step = pick_step_size(min_step)
-
-    while True:
-        positions = tuple(gen_tick_values(value_range, cur_tick_step))
-
-        if len(positions) == 0:
-            # No suitable ticks/labels.
-            if accomodate_values:
-                # Printed value labels won't fit, try without them
-                return gen_full_labels(value_range, num_bins, False, tick_space, "")
-            # Nothing fits
-            return {}
-        if len(positions) == 1:
-            return positions_to_labels(positions, [], fmt)
-
-        position_subsets = gen_position_subsets(positions, cur_tick_step)
-
-        # Check to see if all generated label subsets only have a single entry
-        if max(len(subset) for subset in position_subsets) == 1:
-            # Try to just label the ends:
-            return label_ends_only(positions, cur_tick_step, bin_width, accomodate_values, fmt)
-
-        best_subset = find_fitting_subset(
-            position_subsets, cur_tick_step / bin_width, accomodate_values, fmt
-        )
-
-        if best_subset:
-            return positions_to_labels(best_subset, positions, fmt)
-
-        cur_tick_step = pick_step_size(float(cur_tick_step) * 1.01)
-
-
 def calc_edges(value_range, num_bins, values_are_edges):
     """Calculate the top/bottom or left/right values for each of 'num_bins' bins
 
@@ -262,7 +234,7 @@ class Axis:
     """Options for axis generation."""
 
     value_range: ValueRange  # can also specify as a tuple of (min, max)
-    labels: Optional[dict[FloatLike, str]] = (
+    user_labels: Optional[dict[FloatLike, str]] = (
         None  # map axis value to label (plus tick) at that value
     )
     label_fmt: str = "{}"  # format for generated labels
@@ -282,29 +254,66 @@ class Axis:
     ):
         # Sanitize value_range: allow user to provide it as a tuple of FloatLike (without
         # needing to import ValueRange), and convert to ValueRange(Decimal, Decimal)
-        self.value_range = ValueRange(
-            Decimal(float(value_range[0])), Decimal(float(value_range[1]))
-        )
-        self.labels = labels
+        self.value_range = util.make_value_range(value_range)
+        self.user_labels = labels
         self.label_fmt = label_fmt
         self.border_line = border_line
         self.values_are_edges = values_are_edges
         self.fractional_tick_pos = fractional_tick_pos
 
+    def labels(self, num_bins, accomodate_values):
+        """Return positions for labels (plain ticks & ticks with value)"""
+        if self.user_labels:
+            return self.user_labels
+
+        bin_width = (self.value_range.max - self.value_range.min) / num_bins
+
+        if bin_width <= 0:
+            # we don't have a sensible range for the axis values, so just have empty ticks
+            return {}
+
+        tick_space = 1 if accomodate_values and self.fractional_tick_pos else 0
+        min_step = calc_min_step(
+            self.value_range, bin_width, accomodate_values, tick_space, self.label_fmt
+        )
+        cur_tick_step = pick_step_size(min_step)
+
+        while True:
+            positions = tuple(gen_tick_values(self.value_range, cur_tick_step))
+            if len(positions) == 0:
+                # No suitable ticks/labels.
+                if accomodate_values:
+                    # Printed value labels won't fit, try without them
+                    saved_fmt, self.label_fmt = self.label_fmt, ""
+                    try:
+                        return self.labels(num_bins, False)
+                    finally:
+                        self.label_fmt = saved_fmt
+                # Nothing fits
+                return {}
+
+            position_subsets = gen_position_subsets(positions, cur_tick_step)
+            # Check to see if all generated label subsets only have a single entry
+            if max(len(subset) for subset in position_subsets) == 1:
+                # Try to just label the ends:
+                return label_ends_only(
+                    positions, cur_tick_step, bin_width, accomodate_values, self.label_fmt
+                )
+
+            best_subset = find_fitting_subset(
+                position_subsets, cur_tick_step / bin_width, accomodate_values, self.label_fmt
+            )
+
+            if best_subset:
+                return positions_to_labels(best_subset, positions, self.label_fmt)
+
+            cur_tick_step = pick_step_size(float(cur_tick_step) * 1.01)
+
     def _unjustified_y_axis(self, num_rows: int):
         """Returns the Y axis string for each line of the plot"""
-        if self.labels is None:
-            labels = gen_full_labels(
-                self.value_range,
-                num_rows,
-                False,
-                0,
-                self.label_fmt,
-            )
-        else:
-            labels = self.labels
-
+        labels = self.labels(num_rows, False)
         label_values = sorted(labels.keys())
+
         bins = calc_edges(self.value_range, num_rows, self.values_are_edges)
 
         use_combining = self.border_line and self.fractional_tick_pos
@@ -365,6 +374,37 @@ class Axis:
         ]
         return padded_labels
 
+    def render_as_y_pixels(self, tick_width: int, num_text_rows: int, num_pixel_rows: int):
+        """Pixel output for ticks on Y axis
+
+        Parameters
+        ----------
+        tick_width:     int
+                        Width of each tick, in pixels
+        num_text_rows:  int
+                        Number of text rows corresponding to the Y axis, as labels will be text
+        num_pixel_rows: int
+                        Number of pixel rows/lines for the tick output
+        """
+
+        labels = self.labels(num_text_rows, False)
+        label_values = sorted(labels.keys())
+
+        bins = calc_edges(self.value_range, num_pixel_rows, self.values_are_edges)
+
+        # The output is the same in every column except for the last (optional) border line
+        border = [FG_IDX] if self.border_line else []
+
+        out = []
+        for row_min, row_max in bins:
+            if label_values and row_min <= label_values[0] <= row_max:
+                out += [[FG_IDX] * tick_width + border]
+                label_values = label_values[1:]
+            else:
+                out += [[BG_IDX] * tick_width + border]
+
+        return out
+
     def render_as_x(self, num_cols: int, left_margin: int):
         """Generate X tick line and X label line.
 
@@ -375,12 +415,7 @@ class Axis:
         left_margin: int
                      chars to the left of leftmost data col. May have Labels/border-line.
         """
-        if self.labels is None:
-            tick_space = 1 if self.fractional_tick_pos else 0
-            labels = gen_full_labels(self.value_range, num_cols, True, tick_space, self.label_fmt)
-        else:
-            labels = self.labels
-
+        labels = self.labels(num_cols, True)
         label_values = sorted(labels.keys())
 
         bins = calc_edges(self.value_range, num_cols, self.values_are_edges)
@@ -410,6 +445,39 @@ class Axis:
                 label_values = label_values[1:]  # pop that first label since we added it
 
         return "".join(tick_line), "".join(label_line)
+
+    def render_as_x_pixels(self, tick_height: int, num_text_cols: int, num_pixel_cols: int):
+        """Pixel output for ticks on X axis
+
+        Parameters
+        ----------
+        tick_height:    int
+                        Height of each tick, in pixels
+        num_text_cols:  int
+                        Number of text columns for the axis
+        num_pixel_cols: int
+                        Number of pixel columns for the tick output
+        """
+
+        labels = self.labels(num_text_cols, True)
+        label_values = sorted(labels.keys())
+
+        bins = calc_edges(self.value_range, num_pixel_cols, self.values_are_edges)
+
+        out = []
+        if self.border_line:
+            # a line under the X axis / above the ticks
+            out += [[FG_IDX] * num_pixel_cols]
+
+        tick_line = []
+        for col_min, col_max in bins:
+            if label_values and col_min <= label_values[0] <= col_max.next_plus():
+                tick_line += [FG_IDX]
+                label_values = label_values[1:]  # pop that first label since we added the tick
+            else:
+                tick_line += [BG_IDX]
+        out += [tick_line] * tick_height
+        return out
 
     def upscale(self, new_num_bins, multiplier):
         """Adjust axis for an upscaled plot"""
