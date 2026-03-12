@@ -39,6 +39,8 @@ class Plot:
     flip_y: bool = True  # put the first row of data at the bottom of the output
     to_right: Optional["Plot" | Sequence[str]] = None
     right_padding: Optional[str] = None
+    fg_rgb: Optional[tuple] = None  # color for axis ticks & border when using RGB output
+    bg_rgb: Optional[tuple] = None  # background for axis ticks & border when using RGB output
 
     def data_limits(self):
         """Return (min,max) of the plot data."""
@@ -75,6 +77,11 @@ class Plot:
             fg_line = next(lines, [])
             colors = (self.color_map(x, y) for x, y in zip(bg_line, fg_line))
             yield (half_block.join(chain(colors, [ansi.RESET])))
+
+    def data_paletteized(self):
+        """Return the plot output as an array of palette indexes"""
+        output_data = self.conditioned_data()
+        return ([self.color_map.from_palette(d) for d in line] for line in output_data)
 
     def conditioned_data(self):
         """Normalize data to 0..1 interval based on min_data/max_data or actual min/max,
