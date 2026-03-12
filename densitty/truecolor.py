@@ -3,6 +3,7 @@
 import operator
 import math
 
+from itertools import islice
 from typing import Optional, Sequence, overload
 
 from . import ansi
@@ -22,6 +23,13 @@ use_oda_colorcodes = False
 
 # ANSI color codes will want RGB values in 0-255 range, Sixels want 0-100.
 # So our base RGB triples will be floats ranging 0.0..1.0
+
+# Sixel images can use a palette of up to 256 colors (I think this is widely supported).
+# We reserve two colors for FG/BG of axis ticks. To reduce banding in non-sixel images,
+# we'll use a more extensive color scale size by default, but downselect for sixels.
+NUM_RESERVED_PALETTE_COLORS = 2
+DEFAULT_PALETTE_SIZE = 256 - NUM_RESERVED_PALETTE_COLORS
+DEFAULT_COLORMAP_SIZE = DEFAULT_PALETTE_SIZE * 2
 
 # To keep the types distinct between LAB triples and RGB triples, we'll make them
 # separate types. Trying to use NewType type aliases for RGB/LAB/RGB255 confuses pylint
@@ -186,11 +194,15 @@ class Colormap_24b:
     Can also be used as an RGB colormap for sixels.
     """
 
-    # Sixel prep: multiple of 254 colors by default, and this:
-    # pylint: disable=too-few-public-methods
+    # If using sixels, there will be a max of # colors in used in palette (256, minus reserved
+    # FG/BG colors for axis ticks). To make things work nicely, use a multiple of
+    # DEFAULT_PALETTE_SIZE by default.
 
     def __init__(
-        self, color_points: Sequence[RGB], num_output_colors=254 * 2, interp_in_rgb=False
+        self,
+        color_points: Sequence[RGB],
+        num_output_colors=2 * DEFAULT_PALETTE_SIZE,
+        interp_in_rgb=False,
     ):
         """
         Parameters
@@ -199,12 +211,14 @@ class Colormap_24b:
                       Evenly-spaced color values corresponding to 0.0..1.0
         num_output_colors: int
                       Number of distinct interpolated output colors to use
-                      Default: 254, to hit 256 when adding out-of-map foreground/background
+                      Default: 2 * max number of colors in sixel palette
         interp_in_rgb: bool
                       Interpolate in RGB space rather than Lab space
         """
         self.count = num_output_colors
         self.scale = expand_rgb_colormap(color_points, num_output_colors, interp_in_rgb)
+        self.palette_size = min(num_output_colors, DEFAULT_PALETTE_SIZE)
+        self.palette_stride = math.ceil(num_output_colors / self.palette_size)
 
     def __call__(self, bg_frac: Optional[float], fg_frac: Optional[float]):
         """Using the colormap object as a function, so it can be used with Plot class"""
@@ -224,6 +238,16 @@ class Colormap_24b:
             else:
                 codes += [f"48;2;{bg[0]};{bg[1]};{bg[2]}"]
         return ansi.compose(codes)
+
+    def palette(self, axis_fg: RGB, axis_bg: RGB):
+        """For sixel support: returns a list of colors by index"""
+        scale_palette = islice(self.scale, 0, None, self.palette_stride)
+        return (axis_bg, axis_fg, *scale_palette)
+
+    def from_palette(self, frac):
+        """For sixel support: turn 0..1 into a color index"""
+        idx = clamp(math.floor(frac * self.palette_size), 0, self.palette_size - 1)
+        return idx + NUM_RESERVED_PALETTE_COLORS
 
 
 # RGB Color triples to use in making color scales:
