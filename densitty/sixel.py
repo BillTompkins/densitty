@@ -189,7 +189,7 @@ class Plot(plotting.Plot):
     def get_cell_height(cls):
         """Get the height in pixels of a text character cell"""
         if cls.cell_height is None:
-            cls.cell_height = detect_sixel_size(overwrite_existing=False, right_side=True)
+            cls.cell_height = detect_sixel_size(overwrite_existing=False, right_side=False)
         return cls.cell_height
 
     @classmethod
@@ -273,7 +273,7 @@ def count_text_rows_for_sixels(sixel_lines: int, start_row: int):
     return num_text_lines
 
 
-def detect_sixel_size(overwrite_existing=False, right_side=True):
+def detect_sixel_size(overwrite_existing=False, right_side=False):
     """Determine pixels per character / Ratio of Sixel output to character output
     Parameters
     ----------
@@ -282,6 +282,8 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
          rather than scrolling the window by two lines.
      right_side : bool
          Overwrite characters in the next-to-last column, rather than the first.
+         This is a little less obvious to the user, but interferes with our ability
+         to tell that sixels (and not characters) are being output.
 
      returns: number of vertical pixels per character
     """
@@ -302,6 +304,9 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
         step *= 2
         detect.set_cursor_pos(pre_cursor_col, pre_cursor_row)
         rows = count_text_rows_for_sixels(step, pre_cursor_row)
+        if rows == 0 and not right_side:
+            # The attempted sixel output did not move the text cursor down a line
+            raise OSError("No Sixel support")
         if rows > 1:
             min_pos = step // 2
             step = step // 4
