@@ -4,7 +4,7 @@ import math
 import os
 from collections.abc import Callable, Sequence
 
-from . import detect, plotting, truecolor
+from . import axis, detect, plotting, truecolor
 from .util import batched
 
 
@@ -206,6 +206,12 @@ class Plot(plotting.Plot):
             return cls.cell_width(cls.get_cell_height())
         return cls.cell_width
 
+    def __init__(self, *args, axis_fg=truecolor.WHITE, axis_bg=truecolor.BLACK, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.axis_fg = axis_fg
+        self.axis_bg = axis_bg
+        self.add_colorbar = False
+
     def as_sixelblock(self):
         """Returns tuple of:
         - sixel output characters
@@ -218,9 +224,10 @@ class Plot(plotting.Plot):
         rows = round(height / self.get_cell_height())
         cols = round(width / self.get_cell_width())
 
-        sixel_block = SixelBlock(
-            self.color_map.palette(self.fg_rgb, self.bg_rgb), self.data_paletteized()
-        )
+        axis_fg = self.axis_fg if self.axis_fg else truecolor.WHITE
+        axis_bg = self.axis_bg if self.axis_bg else truecolor.BLACK
+
+        sixel_block = SixelBlock(self.color_map.palette(axis_fg, axis_bg), self.data_paletteized())
 
         if self.y_axis:
             y_tick_width = self.get_cell_width() - (1 * self.y_axis.border_line)
@@ -241,6 +248,37 @@ class Plot(plotting.Plot):
                 sixel_block.add_below(x_axis_border)
         return sixel_block, rows, cols
 
+    def show_colorbar(self, prefix=""):
+        """Display a horizontal colorbar via sixels"""
+
+        min_value, max_value = self.data_limits()
+
+        colorbar_labels = {
+            min_value: str(min_value),
+            max_value: str(max_value),
+        }
+        colorbar_axis = axis.Axis(
+            value_range=(min_value, max_value),
+            labels=colorbar_labels,
+            values_are_edges=False,
+            border_line=False,
+        )
+        bar_width = len(self.data[0])
+        bar_height = 10
+        gradient_data = [[i / (bar_width - 1) for i in range(bar_width)]] * bar_height
+
+        colorbar_plot = Plot(
+            data=gradient_data,
+            color_map=self.color_map,
+            render_halfheight=False,
+            font_mapping=self.font_mapping,
+            x_axis=colorbar_axis,
+            min_data=0,
+            max_data=1,
+            flip_y=False,
+        )
+        colorbar_plot.show(prefix=prefix)
+
     def show(self, prefix="", printer=print):
         sixel_block, rows, cols = self.as_sixelblock()
 
@@ -256,12 +294,20 @@ class Plot(plotting.Plot):
 
             # cursor is now after the bottom Y axis text line. Move to after the top Y axis line:
             printer(f"\033[{len(y_axis_labels) - 1}A", end="")
-
+            y_axis_margin = len(y_axis_text[0])
+        else:
+            print(prefix, end="")
+            y_axis_margin = 0
         printer(sixel_block.out(), end="")
 
         if self.x_axis:
-            _, x_axis_text_labels = self.x_axis.render_as_x(cols, len(y_axis_text[0]))
+            _, x_axis_text_labels = self.x_axis.render_as_x(cols, y_axis_margin)
             printer(prefix + x_axis_text_labels)
+
+        if self.add_colorbar:
+            print("")
+            bar_prefix = prefix + " " * y_axis_margin
+            self.show_colorbar(prefix=bar_prefix)
 
 
 def count_text_rows_for_sixels(sixel_lines: int, start_row: int):
@@ -325,3 +371,18 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
 
     # "min_pos" now has the number of sixel rows that don't cause a "spill" into the next text row
     return min_pos
+
+
+def plot(data, colors=detect.FADE_IN, colorscale=False, **plotargs):
+    """Helper function used with detect.py functions to produce a Plot object"""
+    if "axis_fg" not in plotargs:
+        plotargs["axis_fg"] = truecolor.WHITE
+    if "axis_bg" not in plotargs:
+        plotargs["axis_bg"] = truecolor.BLACK
+    colormap24b = colors[detect.ColorSupport.ANSI_24BIT]
+    the_plot = Plot(data, color_map=colormap24b, **plotargs)
+
+    if colorscale:
+        the_plot.add_colorbar = True
+
+    return the_plot

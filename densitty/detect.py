@@ -469,8 +469,9 @@ def histplot2d(
     border_line=True,
     fractional_tick_pos=False,
     scale: bool | int = False,
+    plotfunc: Callable = plot,
     **plotargs,
-    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 ):
     """Wrapper for binning.histogram2d / plot.Plot to simplify 2-D histogram plotting"""
     binned_data, x_axis, y_axis = binning.histogram2d(
@@ -483,7 +484,7 @@ def histplot2d(
         border_line=border_line,
         fractional_tick_pos=fractional_tick_pos,
     )
-    p = plot(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
+    p = plotfunc(binned_data, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
     if scale is True:
         p.upscale()
     elif scale:
@@ -501,6 +502,7 @@ def densityplot2d(
     colors=FADE_IN,
     border_line=True,
     fractional_tick_pos=False,
+    plotfunc: Callable = plot,
     **plotargs,
     # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 ):
@@ -539,12 +541,21 @@ def densityplot2d(
         border_line=border_line,
         fractional_tick_pos=fractional_tick_pos,
     )
-    p = plot(smoothed, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
+    p = plotfunc(smoothed, colors, x_axis=x_axis, y_axis=y_axis, **plotargs)
 
     return p
 
 
-def grid_heatmap(data, x_labels, y_labels, colors=REV_RAINBOW, max_cell_size=0, **plotargs):
+def grid_heatmap(
+    data,
+    x_labels,
+    y_labels,
+    colors=REV_RAINBOW,
+    max_cell_size=0,
+    plotfunc: Callable = plot,
+    **plotargs,
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+):
     """Create a grid-style heatmap, with explicit X and Y labels for each bin"""
     if max_cell_size == 0:
         max_x_label = max(len(x) for x in x_labels)
@@ -562,7 +573,7 @@ def grid_heatmap(data, x_labels, y_labels, colors=REV_RAINBOW, max_cell_size=0, 
     x_axis = axis.Axis((0, num_cols - 1), dict(enumerate(x_labels)))
     y_axis = axis.Axis((0, num_rows - 1), dict(enumerate(y_labels)))
 
-    plt = plot(data, colors=colors, x_axis=x_axis, y_axis=y_axis, flip_y=False, **plotargs)
+    plt = plotfunc(data, colors=colors, x_axis=x_axis, y_axis=y_axis, flip_y=False, **plotargs)
     plt.upscale(max_expansion=max_cell_size)
 
     return plt

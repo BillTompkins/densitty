@@ -60,3 +60,6 @@ packages = ["densitty"]
 
 [tool.uv]
 default-groups = ["build", "dev"]
+
+[tool.mypy]
+disable_error_code = "annotation-unchecked"

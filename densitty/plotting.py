@@ -39,8 +39,6 @@ class Plot:
     flip_y: bool = True  # put the first row of data at the bottom of the output
     to_right: Optional["Plot" | Sequence[str]] = None
     right_padding: Optional[str] = None
-    fg_rgb: Optional[tuple] = None  # color for axis ticks & border when using RGB output
-    bg_rgb: Optional[tuple] = None  # background for axis ticks & border when using RGB output
 
     def data_limits(self):
         """Return (min,max) of the plot data."""

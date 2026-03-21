@@ -1,7 +1,9 @@
 import pytest
+import random
 from typing import Callable, NamedTuple
 
-from densitty import ansi, axis, plotting, sixel, truecolor
+import densitty
+from densitty import ansi, axis, colorbar, plotting, sixel, truecolor
 import golden
 
 
@@ -64,8 +66,8 @@ def test_sixel_height(
         x_axis=x_axis,
         y_axis=y_axis,
         color_map=colorscale,
-        fg_rgb=truecolor.WHITE,
-        bg_rgb=truecolor.BLACK,
+        axis_fg=truecolor.WHITE,
+        axis_bg=truecolor.BLACK,
     )
     block, rows, cols = p.as_sixelblock()
     check = block.out(), rows, cols
@@ -81,13 +83,12 @@ if __name__ == "__main__":
 
     y_axis = axis.Axis((-4.1, -0.1), border_line=True, values_are_edges=True)
     x_axis = axis.Axis((0, 4), border_line=True, values_are_edges=True)
-    p = sixel.Plot(
-        data,
-        x_axis=x_axis,
-        y_axis=y_axis,
-        color_map=truecolor.REV_RAINBOW,
-        fg_rgb=truecolor.WHITE,
-        bg_rgb=truecolor.BLACK,
-    )
 
-    p.show()
+    random.seed(1)
+    points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
+    # plt = sixel.histplot2d(points)
+    # plt.upscale((500,500), None).show()
+
+    # plt = densitty.densityplot2d(points, bins=(200, 200), colorscale=True, plotfunc=sixel.plot)
+    plt = densitty.histplot2d(points, bins=(200, 200), colorscale=True, plotfunc=sixel.plot)
+    plt.upscale((600, 600)).show()
