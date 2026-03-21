@@ -108,35 +108,42 @@ def pick_kernel_bandwidth(
             fraction of non-zero bins that must have the desired smoothness
             0.5 => median non-zero bin
     """
+    # pylint: disable=too-many-locals
     if bins[0] <= 0 or bins[1] <= 0:
         raise ValueError("Number of bins must be nonzero")
 
-    # we'll reduce the number of bins gradually until we get the right smoothness
+    # look for the the number of bins that would produce the right smoothness
     # track the number of bins in each direction as a float, so we can maintain the
     # aspect ratio without roundoff error accumulating:
-    float_bins: tuple[float, float] = bins
-
-    # bin_step: how much we reduce the # of bins by each iteration.
-    # 1.0 in the larger direction, a fraction in the smaller direction:
-    if bins[0] > bins[1]:
-        bin_step = (1.0, (bins[1] / bins[0]))
-    else:
-        bin_step = ((bins[0] / bins[1]), 1.0)
-    while bins[0] > 0 and bins[1] > 0:
-        binned, x_axis, y_axis = histogram2d(points, bins, ranges, align=False)
+    float_bins = bins[0] * 0.5, bins[1] * 0.5  # start binary search at midpoint
+    bin_step = float_bins
+    bins_try = (0, 0)
+    best_bins = (1, 1)
+    while True:
+        last_bins_try = bins_try
+        bins_try = (round(float_bins[0]), round(float_bins[1]))
+        if bins_try == last_bins_try:
+            # binary search complete
+            break
+        if bins_try[0] == 0 or bins_try[1] == 0:
+            # even a single bin isn't enough
+            break
+        binned, x_axis, y_axis = histogram2d(points, bins_try, ranges, align=False)
         nonzero_bins = [b for row in binned for b in row if b > 0]
         test_pos = int(len(nonzero_bins) * (1.0 - smooth_fraction))
         test_val = sorted(nonzero_bins)[test_pos]
-        if test_val >= smoothness:
-            break
-        float_bins = (float_bins[0] - bin_step[0], float_bins[1] - bin_step[1])
-        bins = (round(float_bins[0]), round(float_bins[1]))
-    else:
-        # We never managed to get 'smoothness' per bin, so just give up and smooth a lot
-        float_bins = (1, 1)
 
-    x_width = float(x_axis.value_range.max - x_axis.value_range.min) / float_bins[0] / 4
-    y_width = float(y_axis.value_range.max - y_axis.value_range.min) / float_bins[1] / 4
+        bin_step = bin_step[0] * 0.5, bin_step[1] * 0.5
+
+        if test_val >= smoothness:
+            float_bins = (float_bins[0] + bin_step[0], float_bins[1] + bin_step[1])
+            if bins_try[0] > best_bins[0]:
+                best_bins = bins_try
+        else:
+            float_bins = (float_bins[0] - bin_step[0], float_bins[1] - bin_step[1])
+
+    x_width = float(x_axis.value_range.max - x_axis.value_range.min) / best_bins[0] / 4
+    y_width = float(y_axis.value_range.max - y_axis.value_range.min) / best_bins[1] / 4
 
     return (x_width, y_width)
 

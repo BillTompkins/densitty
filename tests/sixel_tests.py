@@ -86,9 +86,9 @@ if __name__ == "__main__":
 
     random.seed(1)
     points = [(random.triangular(-10, 10, 2), random.gauss(-1, 2)) for _ in range(10000)]
-    # plt = sixel.histplot2d(points)
-    # plt.upscale((500,500), None).show()
 
-    # plt = densitty.densityplot2d(points, bins=(200, 200), colorscale=True, plotfunc=sixel.plot)
+    plt = densitty.densityplot2d(points, bins=(500, 500), plotfunc=sixel.plot)
+    plt.show()
+
     plt = densitty.histplot2d(points, bins=(200, 200), colorscale=True, plotfunc=sixel.plot)
     plt.upscale((600, 600)).show()
