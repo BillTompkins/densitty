@@ -7,6 +7,47 @@ from collections.abc import Callable, Sequence
 from . import axis, detect, plotting, truecolor
 from .util import batched
 
+# pylint: disable=global-statement,invalid-name
+
+# Height of text cell. If not set by user, we will try to detect it
+cell_height: int | None = None
+# Default calculator for text cell width based on the cell height: half, rounded down to even:
+cell_width: int | Callable = lambda cell_height: math.floor(cell_height / 4) * 2
+
+# Some Sixel implementations will leave the cursor on the same text line as the last sixel output,
+# while others will always put it on the next line.  If cursor is on that same line, any text
+# output will overwrite sixels, so we'll need a newline:
+sixel_output_requires_newline = False
+
+
+def set_cell_height(new_cell_height: int):
+    """Set the height in pixels of a text character cell"""
+    global cell_height
+    cell_height = new_cell_height
+
+
+def get_cell_height():
+    """Get the height in pixels of a text character cell"""
+    global cell_height
+    if cell_height is None:
+        cell_height = detect_sixel_size(overwrite_existing=False, right_side=True)
+    return cell_height
+
+
+def set_cell_width(new_cell_width: int | Callable[[int], int]):
+    """Set the width in pixels of a text character cell.
+    new_cell_width can be an integer value, or a function that returns the
+    cell width given the cell height."""
+    global cell_width
+    cell_width = new_cell_width
+
+
+def get_cell_width():
+    """Get the width in pixels of a text character cell"""
+    if callable(cell_width):
+        return cell_width(get_cell_height())
+    return cell_width
+
 
 class SixelLine:
     """Accumulates sixel characters with run-length encoding compression."""
@@ -157,6 +198,8 @@ class SixelBlock:
         image = "$-".join(image_lines)  # separate with "Carriage Return" + "Line Feed"
 
         exit_sixel = "\033\\"  # Exit sixel mode
+        if sixel_output_requires_newline and len(self._data) % cell_height != 0:
+            exit_sixel += "\n"
         return enter_sixel + sixel_palette(self._palette) + image + exit_sixel
 
 
@@ -175,37 +218,6 @@ def axis_padding(width: int, height: int, x_border: bool, y_border: bool):
 class Plot(plotting.Plot):
     """Plot with sixel output method"""
 
-    # Height of text cell. If not set by user, we will try to detect it
-    cell_height: int | None = None
-    # Default calculator for text cell width based on the cell height: half, rounded down to even:
-    cell_width: int | Callable = lambda cell_height: math.floor(cell_height / 4) * 2
-
-    @classmethod
-    def set_cell_height(cls, new_cell_height: int):
-        """Set the height in pixels of a text character cell"""
-        cls.cell_height = new_cell_height
-
-    @classmethod
-    def get_cell_height(cls):
-        """Get the height in pixels of a text character cell"""
-        if cls.cell_height is None:
-            cls.cell_height = detect_sixel_size(overwrite_existing=False, right_side=True)
-        return cls.cell_height
-
-    @classmethod
-    def set_cell_width(cls, new_cell_width: int | Callable[[int], int]):
-        """Set the width in pixels of a text character cell.
-        new_cell_width can be an integer value, or a function that returns the
-        cell width given the cell height."""
-        cls.cell_width = new_cell_width
-
-    @classmethod
-    def get_cell_width(cls):
-        """Get the width in pixels of a text character cell"""
-        if callable(cls.cell_width):
-            return cls.cell_width(cls.get_cell_height())
-        return cls.cell_width
-
     def __init__(self, *args, axis_fg=truecolor.WHITE, axis_bg=truecolor.BLACK, **kwargs):
         super().__init__(*args, **kwargs)
         self.axis_fg = axis_fg
@@ -221,8 +233,8 @@ class Plot(plotting.Plot):
         height = len(self.data)
         width = len(self.data[0])
 
-        rows = round(height / self.get_cell_height())
-        cols = round(width / self.get_cell_width())
+        rows = round(height / get_cell_height())
+        cols = round(width / get_cell_width())
 
         axis_fg = self.axis_fg if self.axis_fg else truecolor.WHITE
         axis_bg = self.axis_bg if self.axis_bg else truecolor.BLACK
@@ -230,14 +242,14 @@ class Plot(plotting.Plot):
         sixel_block = SixelBlock(self.color_map.palette(axis_fg, axis_bg), self.data_paletteized())
 
         if self.y_axis:
-            y_tick_width = self.get_cell_width() - (1 * self.y_axis.border_line)
+            y_tick_width = get_cell_width() - (1 * self.y_axis.border_line)
             y_axis_border = self.y_axis.render_as_y_pixels(y_tick_width, rows, height)
             if self.flip_y:
                 y_axis_border = reversed(y_axis_border)
             sixel_block.add_left(y_axis_border)
 
         if self.x_axis:
-            x_tick_height = self.get_cell_height() // 2
+            x_tick_height = get_cell_height() // 2
             x_axis_border = self.x_axis.render_as_x_pixels(x_tick_height, cols, width)
             if self.y_axis:
                 corner = axis_padding(
@@ -331,6 +343,8 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
 
      returns: number of vertical pixels per character
     """
+    global sixel_output_requires_newline
+    sixel_output_requires_newline = False  # we'll detect this below
     terminal_size = os.get_terminal_size()
 
     if not overwrite_existing:
@@ -343,12 +357,14 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
     else:
         pre_cursor_col = 1
 
+    min_height = 1
     step = 1
     for _ in range(10):
         step *= 2
         detect.set_cursor_pos(pre_cursor_col, pre_cursor_row)
         rows = count_text_rows_for_sixels(step, pre_cursor_row)
-        if rows > 1:
+        min_height = min(min_height, rows)
+        if rows - min_height > 0:
             min_pos = step // 2
             step = step // 4
             break
@@ -358,7 +374,7 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
     while step > 0:
         detect.set_cursor_pos(pre_cursor_col, pre_cursor_row)
         rows = count_text_rows_for_sixels(min_pos + step, pre_cursor_row)
-        if rows == 1:
+        if rows - min_height == 0:
             min_pos += step
         step = step // 2
 
@@ -370,6 +386,7 @@ def detect_sixel_size(overwrite_existing=False, right_side=True):
         detect.set_cursor_pos(1, pre_cursor_row)
 
     # "min_pos" now has the number of sixel rows that don't cause a "spill" into the next text row
+    sixel_output_requires_newline = min_height == 0
     return min_pos
 
 

@@ -17,7 +17,7 @@ def no_output(s, end="\n"):
 
 @pytest.fixture()
 def set_cell_height():
-    sixel.Plot.set_cell_height(24)
+    sixel.set_cell_height(24)
 
 
 class SixelPlotParams(NamedTuple):
@@ -77,7 +77,7 @@ def test_sixel_height(
 
 if __name__ == "__main__":
     cols, rows = 50, 25
-    x_size, y_size = cols * sixel.Plot.get_cell_width(), rows * sixel.Plot.get_cell_height()
+    x_size, y_size = cols * sixel.get_cell_width(), rows * sixel.get_cell_height()
 
     data = [[(x + y) for x in range(x_size)] for y in range(y_size)]
 
